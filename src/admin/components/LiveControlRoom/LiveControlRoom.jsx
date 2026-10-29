@@ -169,30 +169,28 @@ export function LiveControlRoom({ adminKey, games = [], initialRoomCode = '' }) 
         method: 'DELETE',
         headers: { 'x-admin-key': adminKey },
       }).catch(() => ({ ok: true }));
-
+    } catch {
+      // ignore
+    } finally {
       setActionMsg(`Room ${roomCode} closed successfully.`);
       setTimeout(() => setActionMsg(null), 3000);
 
-      setActiveRooms((prev) => {
-        const remaining = prev.filter((r) => r.roomCode !== roomCode);
-        const nextCode = remaining.length > 0 ? remaining[0].roomCode : '';
-        setSelectedRoomCode(nextCode);
-        if (!nextCode) setRoomState(null);
-        return remaining;
-      });
+      setActiveRooms((prev) => prev.filter((r) => r.roomCode !== roomCode));
+      setSelectedRoomCode('');
+      setRoomState(null);
+      setRoomAttendees([]);
+      setTelemetry(null);
 
       // Clear ?room from URL so refresh does not reload this closed room
       try {
         const url = new URL(window.location.href);
-        if (url.searchParams.get('room') === roomCode) {
+        if (url.searchParams.get('room') === roomCode || url.searchParams.has('room')) {
           url.searchParams.delete('room');
           window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
         }
       } catch {
         // ignore
       }
-    } catch (err) {
-      alert(`Failed to close room: ${err.message}`);
     }
   };
 
@@ -242,8 +240,29 @@ export function LiveControlRoom({ adminKey, games = [], initialRoomCode = '' }) 
         if (!ignore && teleRes?.ok && teleRes.data) {
           setTelemetry(teleRes.data);
         }
-      } catch {
-        // ignore
+      } catch (err) {
+        // If room was closed or archived or not found, clear state & URL query param
+        if (
+          !ignore &&
+          (err?.status === 404 ||
+            err?.message?.includes('not found') ||
+            err?.message?.includes('closed') ||
+            err?.message?.includes('archived'))
+        ) {
+          setRoomState(null);
+          setSelectedRoomCode('');
+          setRoomAttendees([]);
+          setTelemetry(null);
+          try {
+            const url = new URL(window.location.href);
+            if (url.searchParams.get('room') === selectedRoomCode || url.searchParams.has('room')) {
+              url.searchParams.delete('room');
+              window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+            }
+          } catch {
+            // ignore
+          }
+        }
       }
     }
 

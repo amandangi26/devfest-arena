@@ -228,13 +228,69 @@ export function StagePage() {
   }
 
   if (error) {
+    const handleRetryPin = (e) => {
+      e.preventDefault();
+      if (pinInput.trim()) {
+        setError(null);
+        navigate(`/stage/${pinInput.trim().toUpperCase()}`);
+      }
+    };
+
     return (
-      <div className="max-w-[1240px] mx-auto p-12 text-center flex flex-col items-center gap-4">
-        <AlertCircle className="w-12 h-12 text-[#EA4335]" />
-        <h1 className="text-2xl font-black uppercase text-[#EA4335]">{error}</h1>
-        <Button variant="outline" size="md" onClick={() => navigate('/admin')}>
-          Return to Admin
-        </Button>
+      <div className="min-h-screen bg-[#FFFBF0] flex flex-col items-center justify-center p-6 select-none relative">
+        <div className="tribal-stripe absolute top-0 left-0 right-0 border-b-[2.5px] border-black" />
+        <Card
+          surface="white"
+          shadow="xl"
+          border="thick"
+          rounded="2xl"
+          className="p-8 max-w-md w-full text-center flex flex-col items-center gap-5 border-[3px] border-black shadow-[8px_8px_0_0_#000]"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-[#FDE8E8] border-[2.5px] border-black flex items-center justify-center text-[#EA4335] shadow-[3px_3px_0_0_#EA4335]">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <div>
+            <span className="text-[10px] font-black uppercase px-2.5 py-0.5 bg-[#EA4335] text-white border border-black rounded shadow-[1px_1px_0_0_#000]">
+              Connection Error
+            </span>
+            <h1 className="text-xl font-black uppercase tracking-tight text-black mt-2">
+              {error}
+            </h1>
+            <p className="text-xs font-semibold text-black/70 mt-1">
+              Verify the Room PIN displayed on the Operator Master Console or enter a new PIN below.
+            </p>
+          </div>
+
+          <form onSubmit={handleRetryPin} className="w-full space-y-3">
+            <input
+              type="text"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value.toUpperCase())}
+              placeholder="ENTER ROOM PIN (e.g. HP3XDW)"
+              maxLength={8}
+              className="w-full text-center font-mono font-black text-lg py-3 px-4 border-[2.5px] border-black rounded-xl bg-[#FFFBF0] uppercase tracking-widest placeholder:text-black/30 focus:outline-none focus:ring-2 focus:ring-[#4285F4] shadow-[2px_2px_0_0_#000]"
+            />
+            <Button
+              type="submit"
+              variant="primary"
+              size="md"
+              className="w-full justify-center font-black shadow-[2px_2px_0_0_#000]"
+              disabled={!pinInput.trim()}
+            >
+              <span>Connect to Stage</span>
+              <ArrowRight className="w-4 h-4 ml-1.5" />
+            </Button>
+          </form>
+
+          <div className="w-full pt-3 border-t-2 border-black/10 flex items-center justify-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin')}>
+              Operator Console
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/games')}>
+              Games Hub
+            </Button>
+          </div>
+        </Card>
       </div>
     );
   }

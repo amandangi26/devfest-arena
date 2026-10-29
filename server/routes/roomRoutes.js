@@ -52,7 +52,7 @@ roomRouter.get('/:code/state', async (req, res, next) => {
       // Check database to see if this was a completed match
       try {
         const session = await db.getGameSessionByRoomCode(code);
-        if (session && (session.status === 'GAME_OVER' || session.status === 'ARCHIVED' || session.status === 'ENDED')) {
+        if (session && (session.status === 'GAME_OVER' || session.status === 'ENDED') && session.status !== 'ARCHIVED') {
           return res.json({
             ok: true,
             state: {
@@ -68,7 +68,7 @@ roomRouter.get('/:code/state', async (req, res, next) => {
         // ignore
       }
       return res.status(404).json({
-        error: { code: 'NOT_FOUND', message: `Room "${req.params.code}" not found.` },
+        error: { code: 'NOT_FOUND', message: `Room "${code}" not found or has been closed.` },
       });
     }
     res.json({ ok: true, state: projection });
