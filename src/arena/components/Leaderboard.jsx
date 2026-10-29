@@ -23,6 +23,8 @@ export function Leaderboard({
   trackName = 'All Tracks',
   isOverall = false,
   highlightCode = null,
+  highlightId = null,
+  highlightName = null,
 }) {
   if (!participants || participants.length === 0) {
     return (
@@ -98,9 +100,11 @@ export function Leaderboard({
               const rank = participant.rank || idx + 1;
               const name = participant.displayName || participant.name || 'Anonymous';
               const score = participant.totalScore ?? participant.score ?? 0;
-              const uniqueCode = participant.uniqueCode || '';
               const org = participant.organization || '';
-              const isHighlighted = highlightCode && uniqueCode && highlightCode.toUpperCase() === uniqueCode.toUpperCase();
+              const isHighlighted =
+                (highlightId && participant.attendeeId && highlightId === participant.attendeeId) ||
+                (highlightName && name && highlightName.toLowerCase() === name.toLowerCase()) ||
+                (highlightCode && participant.uniqueCode && highlightCode.toUpperCase() === participant.uniqueCode.toUpperCase());
 
               // Visual distinction for Top 3 & User Highlight
               let rowBg = 'bg-white hover:bg-[#FFFBF0]/60';
@@ -139,7 +143,7 @@ export function Leaderboard({
 
               return (
                 <tr
-                  key={participant.id || participant.attendeeId || uniqueCode || idx}
+                  key={participant.id || participant.attendeeId || `${name}-${rank}-${idx}`}
                   className={cn(
                     'transition-colors text-black font-semibold text-xs sm:text-sm',
                     rowBg
@@ -168,11 +172,11 @@ export function Leaderboard({
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] text-black/60 font-semibold mt-0.5">
-                        {uniqueCode && <span className="font-mono text-black/50">{uniqueCode}</span>}
-                        {uniqueCode && org && <span>•</span>}
-                        {org && <span className="truncate max-w-[150px]">{org}</span>}
-                      </div>
+                      {org && (
+                        <div className="flex items-center gap-2 text-[10px] text-black/60 font-semibold mt-0.5">
+                          <span className="truncate max-w-[150px]">{org}</span>
+                        </div>
+                      )}
                     </div>
                   </td>
 

@@ -188,12 +188,13 @@ export function ArenaPage() {
     if (isMatchLive && liveRoomState?.leaderboard) {
       rawParticipants = (liveRoomState.leaderboard || []).map((l, idx) => ({
         rank: l.rank || idx + 1,
+        attendeeId: l.attendeeId || null,
         displayName: l.displayName || 'Player',
         totalScore: l.totalScore || 0,
         correctCount: l.correctCount || 0,
         totalTimeMs: l.totalTimeMs || 0,
         fastestTimeMs: l.fastestTimeMs || 0,
-        uniqueCode: l.uniqueCode || '',
+        organization: l.organization || '',
       }));
     } else if (matchResults?.leaderboard) {
       rawParticipants = matchResults.leaderboard;
@@ -205,11 +206,10 @@ export function ArenaPage() {
   // Filter participants by search query and track
   const filteredParticipants = rawParticipants.filter((p) => {
     const name = (p.displayName || p.name || '').toLowerCase();
-    const code = (p.uniqueCode || '').toLowerCase();
     const org = (p.organization || '').toLowerCase();
     const query = searchQuery.toLowerCase().trim();
 
-    const matchesQuery = !query || name.includes(query) || code.includes(query) || org.includes(query);
+    const matchesQuery = !query || name.includes(query) || org.includes(query);
     const matchesTrack =
       selectedTrack === 'all' ||
       !p.track ||
@@ -226,7 +226,7 @@ export function ArenaPage() {
   const myStanding = isAuthenticated && user
     ? rawParticipants.find(
         (p) =>
-          (p.uniqueCode && p.uniqueCode.toUpperCase() === user.uniqueCode?.toUpperCase()) ||
+          (p.attendeeId && (p.attendeeId === user.id || p.attendeeId === user.attendeeId)) ||
           (p.displayName && p.displayName.toLowerCase() === user.displayName?.toLowerCase())
       )
     : null;
@@ -361,8 +361,8 @@ export function ArenaPage() {
                 <span className="font-black text-sm text-black">
                   {user.displayName}
                 </span>
-                <span className="font-mono text-xs text-black/60 bg-white px-2 py-0.5 rounded border border-black/30">
-                  {user.uniqueCode}
+                <span className="font-mono text-xs text-[#34A853] bg-white px-2 py-0.5 rounded border border-black/30 font-bold uppercase">
+                  Verified Builder
                 </span>
                 {myStanding?.rank && myStanding.rank <= 3 && (
                   <span className="px-2 py-0.5 bg-[#FBBC05] text-black font-black text-[10px] uppercase rounded-full border border-black shadow-[1px_1px_0_0_#000]">
@@ -626,7 +626,8 @@ export function ArenaPage() {
                 scoreUnit="pts"
                 activityTitle={selectedGame?.title || 'Match'}
                 trackName={selectedGame?.trackTarget || 'All Tracks'}
-                highlightCode={user?.uniqueCode}
+                highlightId={user?.id || user?.attendeeId}
+                highlightName={user?.displayName}
               />
             </>
           )}
@@ -708,7 +709,8 @@ export function ArenaPage() {
             activityTitle="DevFest Grand Champions"
             trackName="Cumulative Roster"
             isOverall={true}
-            highlightCode={user?.uniqueCode}
+            highlightId={user?.id || user?.attendeeId}
+            highlightName={user?.displayName}
           />
         </div>
       )}

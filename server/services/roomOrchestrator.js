@@ -1101,7 +1101,6 @@ class RoomOrchestrator {
       countdownEndsAt: room.countdownEndsAt || null,
       scheduledStartTime: room.scheduledStartTime || null,
       lobbyAttendees: Array.from(room.attendees.values()).slice(-30).map((a) => ({
-        uniqueCode: a.uniqueCode,
         displayName: a.displayName,
         organization: a.organization,
         joinedAt: a.joinedAt,
@@ -1136,7 +1135,7 @@ class RoomOrchestrator {
   /**
    * Retrieves comprehensive tournament match results for an ended game definition.
    */
-  async getGameResults(gameDefinitionId) {
+  async getGameResults(gameDefinitionId, isAdmin = false) {
     const game = await db.getGameDefinition(gameDefinitionId);
     if (!game) {
       throw new RoomError('Game not found.', 404);
@@ -1197,7 +1196,10 @@ class RoomOrchestrator {
           endedAt: matchedRoom.endedAt || Date.now(),
           totalParticipants,
         },
-        leaderboard: matchedRoom.leaderboardCache || [],
+        leaderboard: (matchedRoom.leaderboardCache || []).map((entry) => ({
+          ...entry,
+          uniqueCode: isAdmin ? entry.uniqueCode : undefined,
+        })),
         questionsSummary,
       };
     }
@@ -1244,7 +1246,11 @@ class RoomOrchestrator {
 
       leaderboard = sorted.map((s, idx) => ({
         rank: idx + 1,
-        ...s,
+        attendeeId: s.attendeeId,
+        displayName: s.displayName,
+        ...(isAdmin ? { uniqueCode: s.uniqueCode } : {}),
+        totalScore: s.totalScore,
+        correctCount: s.correctCount,
         totalTimeMs: s.totalTimeMs || 0,
         fastestTimeMs: s.fastestTimeMs === Infinity ? 0 : s.fastestTimeMs,
       }));
@@ -1469,7 +1475,6 @@ class RoomOrchestrator {
       rank: idx + 1,
       attendeeId: item.attendeeId,
       displayName: item.displayName,
-      uniqueCode: item.uniqueCode,
       organization: item.organization,
       track: item.track || 'Flagship Dev',
       totalScore: item.totalScore,

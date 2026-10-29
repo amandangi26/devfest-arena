@@ -263,7 +263,7 @@ export function SoloPracticeModal({ gameId, isOpen, onClose }) {
                   : 'Practice Complete!'}
               </h2>
               <p className="text-xs sm:text-sm font-semibold text-black/70 mt-1 max-w-md mx-auto">
-                Attendee <span className="font-bold text-black">{user?.displayName}</span> ({user?.uniqueCode})
+                Attendee <span className="font-bold text-black">{user?.displayName}</span>
               </p>
             </div>
 

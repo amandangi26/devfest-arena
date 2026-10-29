@@ -10,6 +10,7 @@ import {
   toSafeQuestion,
 } from '../services/gameService.js';
 import { db } from '../db/index.js';
+import { config } from '../config.js';
 import { roomOrchestrator } from '../services/roomOrchestrator.js';
 
 export const gameRouter = Router();
@@ -249,7 +250,9 @@ gameRouter.get('/leaderboard/summary', async (req, res, next) => {
  */
 gameRouter.get('/:id/results', async (req, res, next) => {
   try {
-    const results = await roomOrchestrator.getGameResults(req.params.id);
+    const adminKey = req.headers['x-admin-key'] || req.query.adminKey;
+    const isAdmin = Boolean(adminKey && adminKey === config.adminApiKey);
+    const results = await roomOrchestrator.getGameResults(req.params.id, isAdmin);
     res.json({
       ok: true,
       data: results,

@@ -94,8 +94,8 @@ export function Navbar() {
                 <span className="font-black text-[10px] sm:text-xs text-black truncate max-w-[90px] sm:max-w-[120px]">
                   {user.displayName}
                 </span>
-                <span className="hidden md:inline font-mono font-bold text-[9px] bg-black text-white px-1.5 py-0.2 rounded-full">
-                  {user.uniqueCode}
+                <span className="hidden md:inline font-mono font-bold text-[9px] bg-black text-white px-1.5 py-0.2 rounded-full uppercase">
+                  Verified
                 </span>
                 <button
                   type="button"

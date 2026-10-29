@@ -295,7 +295,7 @@ export function PlayerPage() {
           <div className="mt-5 pt-3 border-t border-black/10 text-xs font-semibold text-black/60">
             {isAuthenticated && user ? (
               <>
-                Playing as <span className="font-bold text-black">{user.displayName}</span> ({user.uniqueCode})
+                Playing as <span className="font-bold text-black">{user.displayName}</span>
               </>
             ) : (
               <span className="text-black/50">Ticket verification required upon joining match</span>

@@ -111,7 +111,7 @@ export function GamesPage() {
             {isAuthenticated ? (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#EEFBF3] border-[2px] border-[#34A853] rounded-xl text-xs font-black text-[#0D2818] shadow-[2px_2px_0_0_#34A853] w-fit">
                 <CheckCircle className="w-4 h-4 text-[#34A853]" />
-                <span>Verified Attendee: {user.displayName} ({user.uniqueCode})</span>
+                <span>Verified Attendee: {user.displayName}</span>
               </div>
             ) : (
               <button
