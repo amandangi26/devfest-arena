@@ -22,6 +22,9 @@ import {
   Radio,
   Mail,
   UserPlus,
+  Trash2,
+  CheckSquare,
+  Square,
   X,
 } from 'lucide-react';
 
@@ -79,6 +82,8 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
   const [showManualModal, setShowManualModal] = useState(false);
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
   const [manualError, setManualError] = useState(null);
+  const [selectedAttendeeIds, setSelectedAttendeeIds] = useState(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
   const [manualForm, setManualForm] = useState({
     uniqueCode: '',
     name: '',
@@ -385,6 +390,78 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
     }
   };
 
+  const handleDeleteSingle = async (att) => {
+    const identifier = att.id || att.unique_code || att.uniqueCode;
+    const name = att.name || 'Attendee';
+    const code = att.unique_code || att.uniqueCode || '';
+
+    if (
+      !window.confirm(
+        `Are you sure you want to permanently delete attendee "${name}" (${code})?\n\nThis will remove their ticket, track affiliations, and admission status.`
+      )
+    ) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const res = await apiClient(`/attendees/${identifier}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-key': adminKey },
+      });
+      if (res?.ok) {
+        setCheckInSuccess(`🗑️ Successfully deleted: ${name}`);
+        setTimeout(() => setCheckInSuccess(null), 3500);
+        setSelectedAttendeeIds((prev) => {
+          const next = new Set(prev);
+          next.delete(identifier);
+          return next;
+        });
+        loadAttendees();
+      } else {
+        alert(res?.error?.message || 'Failed to delete attendee.');
+      }
+    } catch (err) {
+      alert(`Deletion failed: ${err.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedAttendeeIds.size === 0) return;
+
+    if (
+      !window.confirm(
+        `Are you sure you want to permanently delete the ${selectedAttendeeIds.size} selected attendee(s)?\n\nThis action will erase their tickets, tracks, and session records and cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const res = await apiClient('/attendees/bulk-delete', {
+        method: 'POST',
+        headers: { 'x-admin-key': adminKey },
+        body: JSON.stringify({ ids: Array.from(selectedAttendeeIds) }),
+      });
+
+      if (res?.ok) {
+        setCheckInSuccess(`🗑️ Successfully deleted ${res.deletedCount} attendee(s).`);
+        setTimeout(() => setCheckInSuccess(null), 4000);
+        setSelectedAttendeeIds(new Set());
+        loadAttendees();
+      } else {
+        alert(res?.error?.message || 'Failed to bulk delete attendees.');
+      }
+    } catch (err) {
+      alert(`Bulk deletion failed: ${err.message}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleGenerateCode = () => {
     const randomCode = `DFR26-W${Math.floor(100 + Math.random() * 900)}`;
     setManualForm((prev) => ({ ...prev, uniqueCode: randomCode }));
@@ -517,6 +594,10 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
       a.organization?.toLowerCase().includes(q)
     );
   });
+
+  const allFilteredIds = filteredAttendees.map((a) => a.id || a.unique_code);
+  const areAllSelected =
+    allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedAttendeeIds.has(id));
 
   return (
     <div className="max-w-[1360px] mx-auto px-3 sm:px-6 py-6 w-full flex flex-col flex-1 gap-6">
@@ -833,6 +914,40 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
             </div>
           </div>
 
+          {/* BULK ACTION BAR */}
+          {selectedAttendeeIds.size > 0 && (
+            <div className="mb-4 p-3.5 bg-[#FFF5F5] border-[2px] border-black rounded-xl shadow-[3px_3px_0_0_#000] flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-150">
+              <div className="flex items-center gap-2.5">
+                <span className="w-7 h-7 rounded-full bg-[#EA4335] text-white flex items-center justify-center font-black text-xs shadow-[1px_1px_0_0_#000]">
+                  {selectedAttendeeIds.size}
+                </span>
+                <span className="font-black text-xs uppercase tracking-tight text-black">
+                  Attendee(s) Selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setSelectedAttendeeIds(new Set())}
+                  disabled={isDeleting}
+                >
+                  Deselect All
+                </Button>
+                <Button
+                  variant="danger"
+                  size="xs"
+                  onClick={handleBulkDelete}
+                  disabled={isDeleting}
+                  className="font-black shadow-[2px_2px_0_0_#000] flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{isDeleting ? 'Deleting...' : `Delete Selected (${selectedAttendeeIds.size})`}</span>
+                </Button>
+              </div>
+            </div>
+          )}
+
           {filteredAttendees.length === 0 ? (
             <div className="text-center py-12 border-2 border-dashed border-black/20 rounded-xl bg-[#FFFBF0] flex flex-col items-center gap-3">
               <p className="text-sm font-bold text-black/60">
@@ -859,23 +974,71 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
               <table className="w-full text-left text-xs">
                 <thead className="bg-[#FFF8E7] border-b-[2.5px] border-black font-black uppercase text-[10px] tracking-wider text-black">
                   <tr>
+                    <th className="p-3 w-10 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (areAllSelected) {
+                            setSelectedAttendeeIds(new Set());
+                          } else {
+                            setSelectedAttendeeIds(new Set(allFilteredIds));
+                          }
+                        }}
+                        title={areAllSelected ? 'Deselect all' : 'Select all visible attendees'}
+                        className="flex items-center justify-center cursor-pointer text-black hover:text-[#4285F4] mx-auto"
+                      >
+                        {areAllSelected ? (
+                          <CheckSquare className="w-4 h-4 text-[#4285F4]" />
+                        ) : (
+                          <Square className="w-4 h-4 text-black/40" />
+                        )}
+                      </button>
+                    </th>
                     <th className="p-3">Ticket Code</th>
                     <th className="p-3">Name</th>
                     <th className="p-3">Email Address</th>
                     <th className="p-3">Organization</th>
                     <th className="p-3">Verified At</th>
                     <th className="p-3">Venue Status</th>
-                    <th className="p-3 text-right">Entrance Action</th>
+                    <th className="p-3 text-right">Entrance / Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/10 bg-white">
                   {filteredAttendees.map((att) => {
+                    const identifier = att.id || att.unique_code;
+                    const isSelected = selectedAttendeeIds.has(identifier);
                     const isCheckedIn = att.attendance_status === 'checked_in';
                     const isVerified = Boolean(att.ticket_verified_at);
                     const email = att.email_normalized || att.email || '—';
 
                     return (
-                      <tr key={att.id} className="hover:bg-[#FFFBF0]/60 transition-colors">
+                      <tr
+                        key={att.id}
+                        className={`transition-colors ${
+                          isSelected ? 'bg-[#EEF4FF]/70' : 'hover:bg-[#FFFBF0]/60'
+                        }`}
+                      >
+                        <td className="p-3 text-center">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedAttendeeIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(identifier)) next.delete(identifier);
+                                else next.add(identifier);
+                                return next;
+                              });
+                            }}
+                            className="flex items-center justify-center cursor-pointer mx-auto text-black hover:text-[#4285F4]"
+                          >
+                            {isSelected ? (
+                              <CheckSquare className="w-4 h-4 text-[#4285F4]" />
+                            ) : (
+                              <Square className="w-4 h-4 text-black/40" />
+                            )}
+                          </button>
+                        </td>
                         <td className="p-3 font-mono font-black text-black">
                           {att.unique_code}
                         </td>
@@ -919,14 +1082,25 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
                           )}
                         </td>
                         <td className="p-3 text-right">
-                          <Button
-                            variant={isCheckedIn ? 'outline' : 'success'}
-                            size="sm"
-                            disabled={isCheckedIn}
-                            onClick={() => handleCheckIn(att.unique_code || att.uniqueCode)}
-                          >
-                            {isCheckedIn ? 'Admitted' : 'Admit Entrance'}
-                          </Button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              variant={isCheckedIn ? 'outline' : 'success'}
+                              size="sm"
+                              disabled={isCheckedIn}
+                              onClick={() => handleCheckIn(att.unique_code || att.uniqueCode)}
+                            >
+                              {isCheckedIn ? 'Admitted' : 'Admit Entrance'}
+                            </Button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSingle(att)}
+                              title={`Delete ${att.name}`}
+                              disabled={isDeleting}
+                              className="p-1.5 rounded-lg border-[1.5px] border-black/30 hover:border-black bg-white hover:bg-[#EA4335] text-black hover:text-white shadow-[1px_1px_0_0_#000] transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

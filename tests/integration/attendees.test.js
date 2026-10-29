@@ -145,5 +145,54 @@ DFR26-A${runId}2,Vikram Singh,vikram${runId}@example.com,9876543221,Conference O
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
     });
+
+    it('deletes a single attendee by ticket code or ID', async () => {
+      // First create attendee
+      await request(app)
+        .post('/api/attendees')
+        .set('x-admin-key', config.adminApiKey)
+        .send({
+          uniqueCode: 'DFR26-DEL-1',
+          name: 'Delete Me',
+          email: 'delete1@example.com',
+        });
+
+      const delRes = await request(app)
+        .delete('/api/attendees/DFR26-DEL-1')
+        .set('x-admin-key', config.adminApiKey);
+
+      expect(delRes.status).toBe(200);
+      expect(delRes.body.ok).toBe(true);
+
+      const check = await db.findAttendeeByUniqueCode('DFR26-DEL-1');
+      expect(check).toBeNull();
+    });
+
+    it('bulk deletes multiple selected attendees', async () => {
+      // Create two attendees
+      await request(app)
+        .post('/api/attendees')
+        .set('x-admin-key', config.adminApiKey)
+        .send({ uniqueCode: 'DFR26-BULK-1', name: 'User 1', email: 'b1@example.com' });
+
+      await request(app)
+        .post('/api/attendees')
+        .set('x-admin-key', config.adminApiKey)
+        .send({ uniqueCode: 'DFR26-BULK-2', name: 'User 2', email: 'b2@example.com' });
+
+      const bulkRes = await request(app)
+        .post('/api/attendees/bulk-delete')
+        .set('x-admin-key', config.adminApiKey)
+        .send({ ids: ['DFR26-BULK-1', 'DFR26-BULK-2'] });
+
+      expect(bulkRes.status).toBe(200);
+      expect(bulkRes.body.ok).toBe(true);
+      expect(bulkRes.body.deletedCount).toBe(2);
+
+      const check1 = await db.findAttendeeByUniqueCode('DFR26-BULK-1');
+      const check2 = await db.findAttendeeByUniqueCode('DFR26-BULK-2');
+      expect(check1).toBeNull();
+      expect(check2).toBeNull();
+    });
   });
 });

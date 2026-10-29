@@ -49,6 +49,52 @@ class MemoryStore {
     };
   }
 
+  async deleteAttendee(idOrCode) {
+    if (!idOrCode) return false;
+    let attendee = this.attendees.get(idOrCode);
+    if (!attendee) {
+      attendee = this.attendeeByUniqueCode.get(idOrCode.toUpperCase().trim());
+    }
+    if (!attendee) return false;
+
+    this.attendees.delete(attendee.id);
+    if (attendee.unique_code) {
+      this.attendeeByUniqueCode.delete(attendee.unique_code.toUpperCase().trim());
+    }
+
+    // Clean up tracks
+    for (const [key, track] of this.attendeeTracks.entries()) {
+      if (track.attendee_id === attendee.id) {
+        this.attendeeTracks.delete(key);
+      }
+    }
+
+    // Clean up sessions
+    for (const [tokenHash, session] of this.sessions.entries()) {
+      if (session.attendee_id === attendee.id) {
+        this.sessions.delete(tokenHash);
+      }
+    }
+
+    // Clean up accepted answers
+    for (const [key, ans] of this.acceptedAnswers.entries()) {
+      if (ans.attendee_id === attendee.id) {
+        this.acceptedAnswers.delete(key);
+      }
+    }
+
+    return true;
+  }
+
+  async deleteAttendeesBulk(idsOrCodes = []) {
+    let count = 0;
+    for (const item of idsOrCodes) {
+      const ok = await this.deleteAttendee(item);
+      if (ok) count++;
+    }
+    return count;
+  }
+
   // Attendee Tracks
   async addAttendeeTrack(trackAssignment) {
     const key = `${trackAssignment.attendee_id}_${trackAssignment.track_id}`;

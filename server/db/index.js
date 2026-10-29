@@ -77,6 +77,60 @@ export const db = {
     return memoryStore.listAttendees(limit, offset);
   },
 
+  async deleteAttendee(idOrCode) {
+    if (!idOrCode) return false;
+    const clean = String(idOrCode).trim();
+
+    if (supabase) {
+      // Find attendee first
+      let attendeeId = clean;
+      let uniqueCode = clean;
+
+      const { data: att } = await supabase
+        .from('attendees')
+        .select('id, unique_code')
+        .or(`id.eq.${clean},unique_code.eq.${clean.toUpperCase()}`)
+        .maybeSingle();
+
+      if (att) {
+        attendeeId = att.id;
+        uniqueCode = att.unique_code;
+      }
+
+      // Delete child references
+      await supabase.from('accepted_answers').delete().eq('attendee_id', attendeeId);
+      await supabase.from('attendee_sessions').delete().eq('attendee_id', attendeeId);
+      await supabase.from('attendee_tracks').delete().eq('attendee_id', attendeeId);
+
+      const { error } = await supabase.from('attendees').delete().eq('id', attendeeId);
+      if (error) {
+        console.error('[DB] deleteAttendee error:', error);
+        return false;
+      }
+
+      memoryStore.deleteAttendee(attendeeId);
+      memoryStore.deleteAttendee(uniqueCode);
+      return true;
+    }
+
+    return memoryStore.deleteAttendee(clean);
+  },
+
+  async deleteAttendeesBulk(idsOrCodes = []) {
+    if (!idsOrCodes || idsOrCodes.length === 0) return 0;
+
+    if (supabase) {
+      let deleted = 0;
+      for (const item of idsOrCodes) {
+        const ok = await this.deleteAttendee(item);
+        if (ok) deleted++;
+      }
+      return deleted;
+    }
+
+    return memoryStore.deleteAttendeesBulk(idsOrCodes);
+  },
+
   // Attendee Tracks
   async addAttendeeTrack(trackAssignment) {
     if (supabase) {

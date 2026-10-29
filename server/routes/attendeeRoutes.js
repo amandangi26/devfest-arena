@@ -11,6 +11,7 @@ import {
 import { requireAdmin } from '../middleware/adminAuth.js';
 import { config } from '../config.js';
 import { db } from '../db/index.js';
+import { roomOrchestrator } from '../services/roomOrchestrator.js';
 
 export const attendeeRouter = Router();
 
@@ -232,6 +233,93 @@ attendeeRouter.post('/:uniqueCode/check-in', requireAdmin, async (req, res, next
         attendanceStatus: updated.attendance_status,
         checkedInAt: updated.checked_in_at,
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const bulkDeleteSchema = z.object({
+  ids: z.array(z.string().trim().min(1)).min(1, 'Please select at least one attendee to delete.'),
+});
+
+/**
+ * POST /api/attendees/bulk-delete
+ * Bulk deletes attendees selected by administrators.
+ */
+attendeeRouter.post('/bulk-delete', requireAdmin, async (req, res, next) => {
+  try {
+    const parseResult = bulkDeleteSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: parseResult.error.issues?.[0]?.message || 'Invalid attendee deletion selection.',
+        },
+      });
+    }
+
+    const { ids } = parseResult.data;
+
+    // Disconnect any active lobby instances for these attendees
+    for (const idOrCode of ids) {
+      for (const room of roomOrchestrator.rooms.values()) {
+        roomOrchestrator.removeAttendee(room.roomCode, idOrCode);
+      }
+    }
+
+    const deletedCount = await db.deleteAttendeesBulk(ids);
+
+    await db.logAuditEvent({
+      id: `audit_bulk_del_${Date.now()}`,
+      admin_id: req.adminId || 'operator',
+      action: 'BULK_DELETE_ATTENDEES',
+      target_id: 'multiple',
+      details: { count: deletedCount, requestedCount: ids.length },
+    });
+
+    res.json({
+      ok: true,
+      deletedCount,
+      message: `Successfully deleted ${deletedCount} attendee(s).`,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * DELETE /api/attendees/:idOrCode
+ * Deletes a single attendee by ID or unique ticket code.
+ */
+attendeeRouter.delete('/:idOrCode', requireAdmin, async (req, res, next) => {
+  try {
+    const idOrCode = req.params.idOrCode?.trim();
+    if (!idOrCode) {
+      return res.status(400).json({ error: { message: 'Attendee ID or Ticket Code required.' } });
+    }
+
+    // Disconnect attendee from active room lobbies if present
+    for (const room of roomOrchestrator.rooms.values()) {
+      roomOrchestrator.removeAttendee(room.roomCode, idOrCode);
+    }
+
+    const deleted = await db.deleteAttendee(idOrCode);
+    if (!deleted) {
+      return res.status(404).json({ error: { message: `Attendee "${idOrCode}" not found.` } });
+    }
+
+    await db.logAuditEvent({
+      id: `audit_del_${Date.now()}`,
+      admin_id: req.adminId || 'operator',
+      action: 'DELETE_ATTENDEE',
+      target_id: idOrCode,
+      details: { idOrCode },
+    });
+
+    res.json({
+      ok: true,
+      message: `Attendee deleted successfully.`,
     });
   } catch (err) {
     next(err);
