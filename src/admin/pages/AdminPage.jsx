@@ -443,7 +443,7 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
       });
 
       if (res?.ok) {
-        setCheckInSuccess(`🎉 Registered & Admitted: ${res.attendee.name} (${res.attendee.unique_code})`);
+        setCheckInSuccess(`🎉 Registered & Admitted: ${res.attendee.name} (${res.attendee.unique_code || res.attendee.uniqueCode})`);
         setTimeout(() => setCheckInSuccess(null), 4000);
         setShowManualModal(false);
         setManualForm({
@@ -923,7 +923,7 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
                             variant={isCheckedIn ? 'outline' : 'success'}
                             size="sm"
                             disabled={isCheckedIn}
-                            onClick={() => handleCheckIn(att.unique_code)}
+                            onClick={() => handleCheckIn(att.unique_code || att.uniqueCode)}
                           >
                             {isCheckedIn ? 'Admitted' : 'Admit Entrance'}
                           </Button>

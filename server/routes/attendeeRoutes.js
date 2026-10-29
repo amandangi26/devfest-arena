@@ -104,6 +104,8 @@ attendeeRouter.post('/', requireAdmin, async (req, res, next) => {
       attendee_id: attendeeId,
       unique_code: uniqueCode,
       track_id: trackId,
+      source_import_id: 'manual_spot',
+      assigned_at: now,
     });
 
     res.status(201).json({
