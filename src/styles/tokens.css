@@ -1,0 +1,66 @@
+/**
+ * DevFest Ranchi 2026 Gaming Arena — Core Design Tokens
+ * Source of Truth: design.md
+ * Neo-Brutalist design language with Google Brand Palette & Jharkhand Regional Earth Tones
+ */
+
+:root {
+  /* Google Brand Pigments */
+  --color-gdg-blue: #4285F4;
+  --color-gdg-red: #EA4335;
+  --color-gdg-yellow: #FBBC05;
+  --color-gdg-green: #34A853;
+
+  /* Ranchi & Jharkhand Regional Heritage */
+  --color-ranchi-sand: #FFFBF0;
+  --color-ranchi-cream: #FFF8E7;
+  --color-ranchi-green: #0D2818;
+  --color-ranchi-terra: #C84B31;
+  --color-spotlight-orange: #F26A21;
+
+  /* Neutrals & Surfaces */
+  --color-surface-white: #FFFFFF;
+  --color-surface-warm-white: #FFFDF6;
+  --color-black: #000000;
+  --color-text-main: #000000;
+  --color-text-muted: #1A1A1A;
+  --color-border-black: #000000;
+
+  /* Tonal Surface Pod Tints */
+  --color-pod-blue: #EEF4FF;
+  --color-pod-green: #EEFBF3;
+  --color-pod-red: #FFF5F5;
+  --color-pod-yellow: #FFFDEE;
+
+  /* Neo-Brutalist Border Widths */
+  --border-brutal-sm: 1.5px;
+  --border-brutal-md: 2px;
+  --border-brutal-base: 2.5px;
+  --border-brutal-lg: 3px;
+  --border-brutal-xl: 3.5px;
+
+  /* Neo-Brutalist Hard Drop Shadows (No blur, pure #000000) */
+  --shadow-brutal-xs: 1.5px 1.5px 0 0 #000000;
+  --shadow-brutal-sm: 2px 2px 0 0 #000000;
+  --shadow-brutal-md: 4px 4px 0 0 #000000;
+  --shadow-brutal-lg: 6px 6px 0 0 #000000;
+  --shadow-brutal-xl: 8px 8px 0 0 #000000;
+  --shadow-brutal-2xl: 12px 12px 0 0 #000000;
+
+  /* Tactile Depressed Shadows */
+  --shadow-tactile-hover: 2px 2px 0 0 #000000;
+  --shadow-tactile-active: 0 0 0 0 #000000;
+
+  /* High-Radius Geometries */
+  --radius-brutal-xs: 6px;
+  --radius-brutal-sm: 12px;
+  --radius-brutal-md: 16px;
+  --radius-brutal-lg: 22px;
+  --radius-brutal-xl: 24px;
+  --radius-brutal-2xl: 32px;
+  --radius-brutal-pill: 9999px;
+
+  /* Typography */
+  --font-primary: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}

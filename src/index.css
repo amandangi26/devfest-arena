@@ -1,0 +1,138 @@
+@import "tailwindcss";
+@import "./styles/tokens.css";
+
+@theme {
+  --color-gdg-blue: var(--color-gdg-blue);
+  --color-gdg-red: var(--color-gdg-red);
+  --color-gdg-yellow: var(--color-gdg-yellow);
+  --color-gdg-green: var(--color-gdg-green);
+
+  --color-ranchi-sand: var(--color-ranchi-sand);
+  --color-ranchi-cream: var(--color-ranchi-cream);
+  --color-ranchi-green: var(--color-ranchi-green);
+  --color-ranchi-terra: var(--color-ranchi-terra);
+  --color-spotlight-orange: var(--color-spotlight-orange);
+
+  --color-surface-white: var(--color-surface-white);
+  --color-surface-warm-white: var(--color-surface-warm-white);
+
+  --color-pod-blue: var(--color-pod-blue);
+  --color-pod-green: var(--color-pod-green);
+  --color-pod-red: var(--color-pod-red);
+  --color-pod-yellow: var(--color-pod-yellow);
+
+  --font-sans: var(--font-primary);
+  --font-display: var(--font-primary);
+  --font-mono: var(--font-mono);
+
+  --shadow-brutal-xs: var(--shadow-brutal-xs);
+  --shadow-brutal-sm: var(--shadow-brutal-sm);
+  --shadow-brutal-md: var(--shadow-brutal-md);
+  --shadow-brutal-lg: var(--shadow-brutal-lg);
+  --shadow-brutal-xl: var(--shadow-brutal-xl);
+  --shadow-brutal-2xl: var(--shadow-brutal-2xl);
+
+  --radius-brutal: var(--radius-brutal-xl);
+  --radius-brutal-lg: var(--radius-brutal-2xl);
+}
+
+/* Base resets adhering to DevFest design system */
+html,
+body {
+  margin: 0;
+  font-family: var(--font-primary);
+  font-weight: 600;
+  background-color: var(--color-ranchi-sand);
+  color: var(--color-text-main);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Signature Tribal Border Gradient (Source: design.md Section 2.3) */
+.tribal-stripe {
+  background-image: repeating-linear-gradient(
+    90deg,
+    #4285F4 0 12px,
+    #EA4335 12px 24px,
+    #FBBC05 24px 36px,
+    #34A853 36px 48px
+  );
+  height: 6px;
+}
+
+/* Blueprint Graph Paper Grid (Source: design.md Section 2.3) */
+.bg-grid-pattern {
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Tactile button mechanics */
+.tactile-button {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.tactile-button:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 0 #000000;
+}
+
+.tactile-button:active {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 0 #000000;
+}
+
+/* Custom smooth scrollbar for horizontal mobile rails */
+.horizontal-scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}
+
+.horizontal-scroll-touch::-webkit-scrollbar {
+  height: 4px;
+}
+
+.horizontal-scroll-touch::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 9999px;
+}
+
+.horizontal-scroll-touch::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 9999px;
+}
+
+.horizontal-scroll-touch::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* Punchy Arcade Number Countdown Pop */
+@keyframes numberPop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-number-pop {
+  animation: numberPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
