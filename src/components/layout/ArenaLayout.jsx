@@ -20,24 +20,25 @@ export function ArenaLayout({ children }) {
       </main>
 
       {/* Neo-Brutalist Forest Footer */}
-      <footer className="bg-[#0D2818] text-white border-t-[3px] border-black py-6 sm:py-8 mt-auto w-full">
-        <div className="max-w-[1360px] mx-auto px-3 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 text-center sm:text-left">
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-3">
-            <span className="font-black text-xs sm:text-sm tracking-wide">
-              DevFest Ranchi 2026 Gaming Arena
-            </span>
-            <span className="text-white/40 text-xs hidden sm:inline">•</span>
-            <span className="text-[11px] sm:text-xs text-white/70">
-              Central & Eastern India&apos;s Flagship Developer Conference
-            </span>
+      <footer className="bg-[#0D2818] text-white border-t-[3px] border-black py-3 sm:py-4 mt-auto w-full select-none">
+        <div className="max-w-[1360px] mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-2.5 sm:gap-4 text-center md:text-left text-xs sm:text-sm font-medium text-white/70">
+          {/* Left: Copyright Notice */}
+          <div>
+            &copy; 2026 Google Developer Groups Ranchi. All rights reserved.
           </div>
 
-          {/* Official GDG Logo & Signature Note */}
+          {/* Center: 4 Google Brand Dots */}
           <div className="flex items-center justify-center gap-2 shrink-0">
-            <img src="/favicon.svg" alt="GDG Ranchi" className="h-4 sm:h-5 w-auto" />
-            <span className="text-xs font-bold text-white/80">
-              GDG Ranchi
-            </span>
+            <span className="w-2 h-2 rounded-full bg-[#4285F4]" />
+            <span className="w-2 h-2 rounded-full bg-[#EA4335]" />
+            <span className="w-2 h-2 rounded-full bg-[#FBBC05]" />
+            <span className="w-2 h-2 rounded-full bg-[#34A853]" />
+          </div>
+
+          {/* Right: Made with Heart Note */}
+          <div className="text-white/80">
+            Made with <span className="inline-block text-[#EA4335]">❤️</span> by{' '}
+            <span className="font-semibold text-white">GDG Ranchi Tech Team</span>
           </div>
         </div>
       </footer>
