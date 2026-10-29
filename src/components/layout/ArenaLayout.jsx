@@ -32,13 +32,10 @@ export function ArenaLayout({ children }) {
             </span>
           </div>
 
-          {/* 4 Google Brand Dots & Signature Note */}
+          {/* Official GDG Logo & Signature Note */}
           <div className="flex items-center justify-center gap-2 shrink-0">
-            <span className="w-2 h-2 rounded-full bg-[#4285F4]" />
-            <span className="w-2 h-2 rounded-full bg-[#EA4335]" />
-            <span className="w-2 h-2 rounded-full bg-[#FBBC05]" />
-            <span className="w-2 h-2 rounded-full bg-[#34A853]" />
-            <span className="text-xs font-bold text-white/70 ml-2">
+            <img src="/favicon.svg" alt="GDG Ranchi" className="h-4 sm:h-5 w-auto" />
+            <span className="text-xs font-bold text-white/80">
               GDG Ranchi
             </span>
           </div>

@@ -28,19 +28,22 @@ export function Navbar() {
       <header className="sticky top-0 z-40 bg-[#FFFBF0]/95 backdrop-blur-md border-b-[2.5px] border-black w-full">
         <div className="max-w-[1360px] mx-auto px-2.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
           {/* Brand Identity */}
-          <Link to="/games" className="flex items-center gap-1.5 sm:gap-3 group select-none min-w-0 shrink">
-            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#4285F4] border border-black shadow-[1px_1px_0_0_#000]" />
-              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#EA4335] border border-black shadow-[1px_1px_0_0_#000]" />
-              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#FBBC05] border border-black shadow-[1px_1px_0_0_#000]" />
-              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#34A853] border border-black shadow-[1px_1px_0_0_#000]" />
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="font-black text-sm sm:text-lg md:text-xl tracking-tight text-black leading-none truncate">
-                DevFest <span className="text-[#4285F4]">Gaming</span> Arena
+          <Link
+            to="/games"
+            className="flex items-center gap-2 sm:gap-3 group select-none shrink-0"
+            title="GDG Ranchi • DevFest Gaming Arena"
+          >
+            <img
+              src="/favicon.svg"
+              alt="GDG Ranchi"
+              className="h-6 sm:h-7 md:h-8 w-auto object-contain shrink-0 group-hover:scale-105 transition-transform"
+            />
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-base sm:text-xl md:text-2xl tracking-tight text-black leading-none whitespace-nowrap">
+                GDG Ranchi
               </span>
-              <span className="text-[8px] sm:text-[10px] font-bold text-black/60 uppercase tracking-widest leading-none mt-0.5 truncate">
-                Ranchi 2026 • Oct 31
+              <span className="hidden md:inline-flex items-center text-[10px] font-black uppercase tracking-wider bg-[#FFE500] text-black px-2 py-0.5 rounded border border-black shadow-[1.5px_1.5px_0_0_#000]">
+                Arena
               </span>
             </div>
           </Link>
