@@ -28,6 +28,11 @@ import {
   CheckSquare,
   Square,
   X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ArrowDown,
 } from 'lucide-react';
 
 export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, propAdminEmail: propAdminEmailAlt, onLogout }) {
@@ -62,9 +67,11 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
   const [isSavingGame, setIsSavingGame] = useState(false);
   const [gameSuccessMsg, setGameSuccessMsg] = useState(null);
 
-  // Attendees list & Manual Registration state
+  // Attendees list, Pagination & Manual Registration state
   const [attendees, setAttendees] = useState([]);
   const [totalAttendees, setTotalAttendees] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const [isLoadingAttendees, setIsLoadingAttendees] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [checkInSuccess, setCheckInSuccess] = useState(null);
@@ -110,23 +117,46 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
     }
   }, [adminKey]);
 
-  const loadAttendees = useCallback(async () => {
-    if (!adminKey) return;
-    setIsLoadingAttendees(true);
-    try {
-      const res = await apiClient('/attendees?limit=100', {
-        headers: { 'x-admin-key': adminKey },
-      });
-      if (res?.ok) {
-        setAttendees(res.data || []);
-        setTotalAttendees(res.total || 0);
+  const loadAttendees = useCallback(
+    async (targetPage = 1, targetSearch = '', targetSize = 50, append = false) => {
+      if (!adminKey) return;
+      setIsLoadingAttendees(true);
+      try {
+        const offset = Math.max(0, (targetPage - 1) * targetSize);
+        const searchParam = targetSearch && targetSearch.trim() ? `&search=${encodeURIComponent(targetSearch.trim())}` : '';
+        const res = await apiClient(`/attendees?limit=${targetSize}&offset=${offset}${searchParam}`, {
+          headers: { 'x-admin-key': adminKey },
+        });
+        if (res?.ok) {
+          if (append) {
+            setAttendees((prev) => {
+              const existingIds = new Set(prev.map((a) => a.id));
+              const newItems = (res.data || []).filter((a) => !existingIds.has(a.id));
+              return [...prev, ...newItems];
+            });
+          } else {
+            setAttendees(res.data || []);
+          }
+          setTotalAttendees(res.total || 0);
+        }
+      } catch (err) {
+        console.error('Failed to load attendees:', err);
+      } finally {
+        setIsLoadingAttendees(false);
       }
-    } catch {
-      // ignore
-    } finally {
-      setIsLoadingAttendees(false);
-    }
-  }, [adminKey]);
+    },
+    [adminKey]
+  );
+
+  // Debounced search trigger across all attendees
+  useEffect(() => {
+    if (!isAuthenticated || !adminKey) return;
+    const timer = setTimeout(() => {
+      setPage(1);
+      loadAttendees(1, searchTerm, pageSize, false);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchTerm, pageSize, adminKey, isAuthenticated, loadAttendees]);
 
   useEffect(() => {
     if (!isAuthenticated || !adminKey) return;
@@ -136,7 +166,7 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
       try {
         const [gamesRes, attRes] = await Promise.allSettled([
           apiClient('/games', { headers: { 'x-admin-key': adminKey } }),
-          apiClient('/attendees?limit=100', { headers: { 'x-admin-key': adminKey } }),
+          apiClient('/attendees?limit=50&offset=0', { headers: { 'x-admin-key': adminKey } }),
         ]);
 
         if (!ignore) {
@@ -334,7 +364,7 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
       if (res?.ok) {
         setCheckInSuccess(`Checked in: ${res.attendee.name} (${res.attendee.uniqueCode})`);
         setTimeout(() => setCheckInSuccess(null), 3000);
-        loadAttendees();
+        loadAttendees(page, searchTerm, pageSize, false);
       }
     } catch (err) {
       alert(`Check-in failed: ${err.message}`);
@@ -368,7 +398,7 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
           next.delete(identifier);
           return next;
         });
-        loadAttendees();
+        loadAttendees(page, searchTerm, pageSize, false);
       } else {
         alert(res?.error?.message || 'Failed to delete attendee.');
       }
@@ -402,7 +432,7 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
         setCheckInSuccess(`🗑️ Successfully deleted ${res.deletedCount} attendee(s).`);
         setTimeout(() => setCheckInSuccess(null), 4000);
         setSelectedAttendeeIds(new Set());
-        loadAttendees();
+        loadAttendees(page, searchTerm, pageSize, false);
       } else {
         alert(res?.error?.message || 'Failed to bulk delete attendees.');
       }
@@ -482,7 +512,8 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
           organization: '',
           track: 'all',
         });
-        loadAttendees();
+        setPage(1);
+        loadAttendees(1, searchTerm, pageSize, false);
       } else {
         throw new Error(res?.error?.message || 'Failed to register attendee.');
       }
@@ -536,6 +567,7 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
 
   // Filter attendees by search
   const filteredAttendees = attendees.filter((a) => {
+    if (!searchTerm) return true;
     const q = searchTerm.toLowerCase();
     const email = (a.email_normalized || a.email || '').toLowerCase();
     const phone = (a.phone_normalized || a.phone || '').toLowerCase();
@@ -551,6 +583,13 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
   const allFilteredIds = filteredAttendees.map((a) => a.id || a.unique_code);
   const areAllSelected =
     allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedAttendeeIds.has(id));
+
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(totalAttendees / pageSize));
+  const isAppended = attendees.length > pageSize;
+  const startItem = totalAttendees === 0 ? 0 : isAppended ? 1 : (page - 1) * pageSize + 1;
+  const endItem = isAppended ? attendees.length : Math.min(totalAttendees, (page - 1) * pageSize + attendees.length);
+  const hasMoreToLoad = attendees.length < totalAttendees;
 
   return (
     <div className="max-w-[1360px] mx-auto px-3 sm:px-6 py-6 w-full flex flex-col flex-1 gap-6">
@@ -690,7 +729,10 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
         <CsvImportSection
           adminKey={adminKey}
           apiClient={apiClient}
-          onImportSuccess={() => loadAttendees()}
+          onImportSuccess={() => {
+            setPage(1);
+            loadAttendees(1, '', pageSize, false);
+          }}
           onSwitchToAttendees={() => setActiveTab('attendees')}
         />
       )}
@@ -703,7 +745,7 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-[#4285F4]" />
                 <h2 className="text-lg font-black text-black uppercase tracking-tight">
-                  Attendees Directory ({filteredAttendees.length})
+                  Attendees Directory ({totalAttendees})
                 </h2>
               </div>
               <p className="text-xs font-semibold text-black/60 mt-0.5">
@@ -739,7 +781,7 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
               <Button
                 variant="outline"
                 size="sm"
-                onClick={loadAttendees}
+                onClick={() => loadAttendees(page, searchTerm, pageSize, false)}
                 disabled={isLoadingAttendees}
                 title="Refresh Attendees"
               >
@@ -804,7 +846,8 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto border-[2.5px] border-black rounded-xl">
+            <>
+              <div className="overflow-x-auto border-[2.5px] border-black rounded-xl">
               <table className="w-full text-left text-xs">
                 <thead className="bg-[#FFF8E7] border-b-[2.5px] border-black font-black uppercase text-[10px] tracking-wider text-black">
                   <tr>
@@ -954,6 +997,131 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
                 </tbody>
               </table>
             </div>
+
+            {/* PAGINATION AND LOAD MORE CONTROLS */}
+            <div className="mt-4 pt-4 border-t-[2px] border-black/10 flex flex-col md:flex-row items-center justify-between gap-4">
+              {/* Left: Range info & Per-page switcher */}
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs font-bold text-black/70">
+                  Showing <span className="font-mono font-black text-black">{startItem}</span> -{' '}
+                  <span className="font-mono font-black text-black">{endItem}</span> of{' '}
+                  <span className="font-mono font-black text-[#4285F4]">{totalAttendees}</span> Attendees
+                </span>
+
+                <div className="flex items-center gap-1.5 text-xs font-bold text-black/60 pl-3 border-l-[1.5px] border-black/20">
+                  <span>Per page:</span>
+                  {[25, 50, 100].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => {
+                        setPageSize(size);
+                        setPage(1);
+                        loadAttendees(1, searchTerm, size, false);
+                      }}
+                      className={`px-2 py-0.5 rounded-md text-xs font-black transition-colors cursor-pointer ${
+                        pageSize === size
+                          ? 'bg-black text-white shadow-[1px_1px_0_0_#000]'
+                          : 'bg-[#FFFBF0] text-black border border-black/30 hover:bg-[#FBBC05]/30'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right: Lazy Load "Load Next" & Page Navigation */}
+              <div className="flex flex-wrap items-center gap-2">
+                {hasMoreToLoad && (
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    onClick={() => {
+                      const nextPage = Math.floor(attendees.length / pageSize) + 1;
+                      setPage(nextPage);
+                      loadAttendees(nextPage, searchTerm, pageSize, true);
+                    }}
+                    disabled={isLoadingAttendees}
+                    className="font-black text-xs flex items-center gap-1.5 bg-[#FFF8E7] hover:bg-[#FBBC05]/30 border-[1.5px] border-black text-black shadow-[1.5px_1.5px_0_0_#000]"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5 text-[#E37400]" />
+                    <span>
+                      {isLoadingAttendees
+                        ? 'Loading...'
+                        : `Load Next ${Math.min(pageSize, totalAttendees - attendees.length)}`}
+                    </span>
+                  </Button>
+                )}
+
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (page > 1) {
+                        setPage(1);
+                        loadAttendees(1, searchTerm, pageSize, false);
+                      }
+                    }}
+                    disabled={page <= 1 || isLoadingAttendees}
+                    title="First Page"
+                    className="p-1.5 rounded-lg border-[1.5px] border-black/30 bg-white hover:bg-black/5 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <ChevronsLeft className="w-3.5 h-3.5 text-black" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (page > 1) {
+                        const prevPage = page - 1;
+                        setPage(prevPage);
+                        loadAttendees(prevPage, searchTerm, pageSize, false);
+                      }
+                    }}
+                    disabled={page <= 1 || isLoadingAttendees}
+                    title="Previous Page"
+                    className="p-1.5 rounded-lg border-[1.5px] border-black/30 bg-white hover:bg-black/5 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 text-black" />
+                  </button>
+
+                  <span className="px-2 text-xs font-black text-black whitespace-nowrap">
+                    Page {page} of {totalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (page < totalPages) {
+                        const nextPage = page + 1;
+                        setPage(nextPage);
+                        loadAttendees(nextPage, searchTerm, pageSize, false);
+                      }
+                    }}
+                    disabled={page >= totalPages || isLoadingAttendees}
+                    title="Next Page"
+                    className="p-1.5 rounded-lg border-[1.5px] border-black/30 bg-white hover:bg-black/5 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 text-black" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (page < totalPages) {
+                        setPage(totalPages);
+                        loadAttendees(totalPages, searchTerm, pageSize, false);
+                      }
+                    }}
+                    disabled={page >= totalPages || isLoadingAttendees}
+                    title="Last Page"
+                    className="p-1.5 rounded-lg border-[1.5px] border-black/30 bg-white hover:bg-black/5 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                  >
+                    <ChevronsRight className="w-3.5 h-3.5 text-black" />
+                  </button>
+                </div>
+              </div>
+            </div>
+            </>
           )}
         </Card>
       )}

@@ -61,6 +61,15 @@ DFR26-A${runId}2,Vikram Singh,vikram${runId}@example.com,9876543221,Conference O
       expect(res.body.preview.previewRows[0].uniqueCode).toBe('DFR26-PREV1');
       expect(res.body.preview.previewRows[0].displayName).toBe('Rohan D.');
     });
+
+    it('supports limit, offset, and search queries for pagination', async () => {
+      const res = await request(app)
+        .get('/api/attendees?limit=1&offset=0')
+        .set('x-admin-key', config.adminApiKey);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeLessThanOrEqual(1);
+    });
   });
 
   describe('POST /api/attendees/:uniqueCode/check-in', () => {

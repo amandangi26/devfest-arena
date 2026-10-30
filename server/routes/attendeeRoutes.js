@@ -245,21 +245,23 @@ attendeeRouter.post('/import', requireAdmin, async (req, res, next) => {
 
 /**
  * GET /api/attendees
- * Lists imported attendees with pagination.
+ * Lists imported attendees with pagination & search filtering.
  * Restricted to Event Administrators.
  */
 attendeeRouter.get('/', requireAdmin, async (req, res, next) => {
   try {
-    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit || '50', 10)));
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit || '50', 10)));
     const offset = Math.max(0, parseInt(req.query.offset || '0', 10));
+    const search = req.query.search ? String(req.query.search).trim() : '';
 
-    const result = await db.listAttendees(limit, offset);
+    const result = await db.listAttendees(limit, offset, search);
     res.json({
       ok: true,
       data: result.data,
       total: result.total,
       limit,
       offset,
+      search,
     });
   } catch (err) {
     next(err);

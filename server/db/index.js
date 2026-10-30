@@ -113,18 +113,25 @@ export const db = {
     return memRecord;
   },
 
-  async listAttendees(limit = 100, offset = 0) {
+  async listAttendees(limit = 100, offset = 0, search = '') {
     if (supabase) {
       try {
-        const { data, count, error } = await supabase
+        let query = supabase
           .from('attendees')
-          .select('*', { count: 'exact' })
+          .select('*', { count: 'exact' });
+
+        if (search && search.trim()) {
+          const clean = search.trim();
+          query = query.or(`name.ilike.%${clean}%,unique_code.ilike.%${clean}%,email_normalized.ilike.%${clean}%,phone_normalized.ilike.%${clean}%,organization.ilike.%${clean}%`);
+        }
+
+        const { data, count, error } = await query
           .range(offset, offset + limit - 1)
           .order('created_at', { ascending: false });
 
         if (error) {
           console.warn('[DB] listAttendees Supabase error, falling back to memoryStore:', error.message || error);
-          return memoryStore.listAttendees(limit, offset);
+          return memoryStore.listAttendees(limit, offset, search);
         }
 
         // Cache loaded attendees into memoryStore
@@ -136,11 +143,11 @@ export const db = {
         return { data: data || [], total: count || data?.length || 0 };
       } catch (err) {
         console.warn('[DB] listAttendees exception, falling back to memoryStore:', err.message || err);
-        return memoryStore.listAttendees(limit, offset);
+        return memoryStore.listAttendees(limit, offset, search);
       }
     }
 
-    return memoryStore.listAttendees(limit, offset);
+    return memoryStore.listAttendees(limit, offset, search);
   },
 
   async deleteAttendee(idOrCode) {

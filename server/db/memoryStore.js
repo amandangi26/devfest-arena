@@ -41,8 +41,25 @@ class MemoryStore {
     return updated;
   }
 
-  async listAttendees(limit = 100, offset = 0) {
-    const all = Array.from(this.attendees.values());
+  async listAttendees(limit = 100, offset = 0, search = '') {
+    let all = Array.from(this.attendees.values());
+    all.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+
+    if (search && search.trim()) {
+      const term = search.toLowerCase().trim();
+      const termDigits = term.replace(/\D/g, '');
+      all = all.filter((a) => {
+        const phone = (a.phone_normalized || a.phone || '').replace(/\D/g, '');
+        return (
+          (a.name && a.name.toLowerCase().includes(term)) ||
+          (a.unique_code && a.unique_code.toLowerCase().includes(term)) ||
+          (a.email_normalized && a.email_normalized.toLowerCase().includes(term)) ||
+          (a.organization && a.organization.toLowerCase().includes(term)) ||
+          (phone && termDigits && phone.includes(termDigits))
+        );
+      });
+    }
+
     return {
       data: all.slice(offset, offset + limit),
       total: all.length,
