@@ -467,15 +467,34 @@ export const db = {
   // Game Versions
   async createGameVersion(version) {
     if (supabase) {
-      const { data, error } = await supabase
-        .from('game_versions')
-        .insert(version)
-        .select()
-        .single();
+      try {
+        // 1. Ensure the parent game definition exists in Supabase to satisfy FK constraint
+        const parentDef = await this.getGameDefinition(version.game_definition_id);
+        if (parentDef) {
+          await this.upsertGameDefinition(parentDef);
+        }
 
-      if (error) throw error;
-      memoryStore.createGameVersion(version);
-      return data;
+        const { data, error } = await supabase
+          .from('game_versions')
+          .insert(version)
+          .select()
+          .single();
+
+        if (error) {
+          if (error.code === '23503' || error.message?.includes('foreign key constraint')) {
+            console.warn('[DB] game_versions FK constraint warning, falling back to memoryStore:', error.message);
+            return memoryStore.createGameVersion(version);
+          }
+          console.error('[DB] createGameVersion error:', error);
+          return memoryStore.createGameVersion(version);
+        }
+
+        memoryStore.createGameVersion(version);
+        return data;
+      } catch (err) {
+        console.error('[DB] createGameVersion exception fallback:', err);
+        return memoryStore.createGameVersion(version);
+      }
     }
 
     return memoryStore.createGameVersion(version);

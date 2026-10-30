@@ -204,14 +204,15 @@ export async function publishGame(id, adminId = 'admin') {
     published_at: now,
   };
 
-  await db.createGameVersion(gameVersion);
-
-  // Mark game as READY
+  // 1. Ensure game definition exists in DB and is marked as READY before inserting version snapshot
   await db.upsertGameDefinition({
     ...game,
     status: 'READY',
     updated_at: now,
   });
+
+  // 2. Insert immutable version snapshot (guarantees parent row exists in Supabase to avoid FK violation)
+  await db.createGameVersion(gameVersion);
 
   await db.logAuditEvent({
     id: `audit_${crypto.randomBytes(8).toString('hex')}`,

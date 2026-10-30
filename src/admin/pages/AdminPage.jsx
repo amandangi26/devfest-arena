@@ -217,11 +217,12 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
         if (!createRes?.ok) throw new Error(createRes?.error?.message || 'Create failed');
         gameId = createRes.game.id;
       } else {
-        await apiClient(`/games/${gameId}`, {
+        const putRes = await apiClient(`/games/${gameId}`, {
           method: 'PUT',
           headers: { 'x-admin-key': adminKey },
           body: JSON.stringify(gamePayload),
         });
+        if (!putRes?.ok) throw new Error(putRes?.error?.message || 'Update failed');
       }
 
       // 2. Publish version
