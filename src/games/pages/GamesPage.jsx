@@ -103,7 +103,7 @@ export function GamesPage() {
             </h1>
 
             <p className="text-xs sm:text-sm font-semibold text-black/70 leading-relaxed">
-              Fastest-fingers-first live auditorium quizzes across Cloud, AI, Web, and Android.
+              Real-time interactive arena quizzes across Cloud, Generative AI, Mobile, and Web technologies.
               Join the synchronized stage battles directly on your phone using the room PIN shown on the auditorium projector screen!
             </p>
 
@@ -129,9 +129,9 @@ export function GamesPage() {
           <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
             <div className="p-3 bg-[#FFFBF0] border-[2px] border-black rounded-xl text-left shadow-[2px_2px_0_0_#000] min-w-[200px]">
               <div className="flex items-center gap-1.5 text-[11px] font-black uppercase text-black/60 mb-0.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#FBBC05]" /> Scoring Mode
+                <Sparkles className="w-3.5 h-3.5 text-[#FBBC05]" /> Scoring System
               </div>
-              <div className="text-sm font-black text-black">+100 Pts / Sahi Answer</div>
+              <div className="text-sm font-black text-black">+100 Pts / Correct Answer</div>
             </div>
 
             <div className="p-3 bg-[#EEF4FF] border-[2px] border-black rounded-xl text-left shadow-[2px_2px_0_0_#000] min-w-[200px]">
@@ -213,13 +213,13 @@ export function GamesPage() {
                   1. Watch Stage Screen
                 </h3>
                 <p className="text-xs font-semibold text-black/70 mt-1.5 leading-relaxed">
-                  When the host initiates a round in the main auditorium, the screen displays the live 6-character room PIN.
+                  When the session host launches a round in the main auditorium, the screen displays the live 6-character room PIN.
                 </p>
               </div>
             </div>
 
             <div className="pt-3 border-t border-black/10 text-[11px] font-bold text-[#4285F4] flex items-center gap-1">
-              <span>Auditorium Projector Display</span>
+              <span>Auditorium Stage Display</span>
             </div>
           </Card>
 
@@ -236,7 +236,7 @@ export function GamesPage() {
                 <span className="text-[10px] font-black uppercase tracking-widest bg-[#FFF8E7] text-[#7A5B00] px-2.5 py-1 rounded-full border border-[#FBBC05]/40">
                   Step 02
                 </span>
-                <span className="text-xs font-black font-mono text-black/40">PHONE</span>
+                <span className="text-xs font-black font-mono text-black/40">DEVICE</span>
               </div>
 
               {/* Visual SVG: Smartphone with PIN Entry */}
@@ -268,7 +268,7 @@ export function GamesPage() {
 
               <div>
                 <h3 className="text-lg font-black uppercase text-black leading-snug">
-                  2. Enter PIN on Phone
+                  2. Enter PIN on Your Device
                 </h3>
                 <p className="text-xs font-semibold text-black/70 mt-1.5 leading-relaxed">
                   Type the 6-character PIN in the console below. Verified tickets automatically sync into the live synchronized battle.
@@ -277,7 +277,7 @@ export function GamesPage() {
             </div>
 
             <div className="pt-3 border-t border-black/10 text-[11px] font-bold text-[#7A5B00] flex items-center gap-1">
-              <span>Instant Lobby Sync</span>
+              <span>Instant Lobby Synchronization</span>
             </div>
           </Card>
 
@@ -329,16 +329,16 @@ export function GamesPage() {
 
               <div>
                 <h3 className="text-lg font-black uppercase text-black leading-snug">
-                  3. Rapid Fire & Podium
+                  3. Answer Fast & Climb the Podium
                 </h3>
                 <p className="text-xs font-semibold text-black/70 mt-1.5 leading-relaxed">
-                  Har sahi answer ke liye 100 points milte hain! Equal score hone par fastest response time se top rank decide hoti hai.
+                  Each correct answer earns +100 points! In the event of a tie, faster response times determine top podium rankings on the live leaderboard.
                 </p>
               </div>
             </div>
 
             <div className="pt-3 border-t border-black/10 text-[11px] font-bold text-[#34A853] flex items-center gap-1">
-              <span>Auditorium Championship</span>
+              <span>Live Stage Championship</span>
             </div>
           </Card>
         </div>
@@ -423,9 +423,9 @@ export function GamesPage() {
           <div className="w-full pt-4 border-t border-black/10 flex flex-col sm:flex-row items-center justify-between text-[11px] font-bold text-black/60 gap-2">
             <span className="flex items-center gap-1.5">
               <CheckCircle className="w-3.5 h-3.5 text-[#34A853]" />
-              Official DevFest Anti-Cheating Protection
+              Official DevFest Fair-Play Verification
             </span>
-            <span>Server-Authoritative Clock</span>
+            <span>Server-Authoritative Real-Time Clock</span>
           </div>
         </Card>
       </section>
