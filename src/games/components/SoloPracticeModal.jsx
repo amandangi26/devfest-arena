@@ -389,52 +389,117 @@ export function SoloPracticeModal({ gameId, isOpen, onClose }) {
               )}
             </Card>
 
-            {/* 4 Choices — NO REVELATION OF WRONG/RIGHT DURING QUIZ */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {currentQ.options.map((opt, idx) => {
-                const colors = [
-                  { bg: 'bg-[#EA4335]', border: 'border-black', letter: 'A' },
-                  { bg: 'bg-[#4285F4]', border: 'border-black', letter: 'B' },
-                  { bg: 'bg-[#FBBC05]', border: 'border-black', letter: 'C' },
-                  { bg: 'bg-[#34A853]', border: 'border-black', letter: 'D' },
-                ];
-                const theme = colors[idx % 4];
-                const isSelected = selectedOptionId === opt.id;
+            {/* 4 Choices: 2 Rows Grid for Images, Standard 2-Col for Text */}
+            {currentQ.options.some((opt) => Boolean(opt.mediaUrl)) ? (
+              <div className="grid grid-cols-2 gap-3">
+                {currentQ.options.map((opt, idx) => {
+                  const colors = [
+                    { bg: 'bg-[#EA4335]', border: 'border-black', letter: 'A' },
+                    { bg: 'bg-[#4285F4]', border: 'border-black', letter: 'B' },
+                    { bg: 'bg-[#FBBC05]', border: 'border-black', letter: 'C' },
+                    { bg: 'bg-[#34A853]', border: 'border-black', letter: 'D' },
+                  ];
+                  const theme = colors[idx % 4];
+                  const isSelected = selectedOptionId === opt.id;
 
-                let cardStyle = `${theme.bg} ${theme.border} text-white`;
-                if (idx === 2) cardStyle = `${theme.bg} ${theme.border} text-black`;
+                  let cardStyle = `${theme.bg} ${theme.border} text-white`;
+                  if (idx === 2) cardStyle = `${theme.bg} ${theme.border} text-black`;
 
-                if (selectedOptionId) {
-                  if (isSelected) {
-                    cardStyle = 'bg-black text-[#FBBC05] border-black ring-4 ring-[#FBBC05] scale-[1.02] shadow-[4px_4px_0_0_#000]';
-                  } else {
-                    cardStyle += ' opacity-40 grayscale-[60%]';
+                  if (selectedOptionId) {
+                    if (isSelected) {
+                      cardStyle = 'bg-black text-[#FBBC05] border-black ring-4 ring-[#FBBC05] scale-[1.02] shadow-[4px_4px_0_0_#000]';
+                    } else {
+                      cardStyle += ' opacity-40 grayscale-[60%]';
+                    }
                   }
-                }
 
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    disabled={Boolean(selectedOptionId)}
-                    onClick={() => handleSelectOption(opt.id)}
-                    className={`p-3.5 rounded-xl border-[2.5px] font-black text-xs sm:text-sm text-left flex items-center gap-3 transition-all cursor-pointer shadow-[2.5px_2.5px_0_0_#000] active:translate-x-[1px] active:translate-y-[1px] ${cardStyle}`}
-                  >
-                    <span className="w-7 h-7 rounded-lg bg-black text-white border border-white/40 flex items-center justify-center font-black text-xs shrink-0">
-                      {theme.letter}
-                    </span>
-                    {opt.mediaUrl && (
-                      <img
-                        src={opt.mediaUrl}
-                        alt=""
-                        className="w-10 h-10 object-cover rounded-lg border border-black/30 bg-white/20 shrink-0 shadow-[1px_1px_0_0_#000]"
-                      />
-                    )}
-                    <span className="truncate leading-tight">{opt.text}</span>
-                  </button>
-                );
-              })}
-            </div>
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      disabled={Boolean(selectedOptionId)}
+                      onClick={() => handleSelectOption(opt.id)}
+                      className={`p-3 rounded-2xl border-[3px] flex flex-col justify-between transition-all cursor-pointer shadow-[3px_3px_0_0_#000] active:translate-x-[1px] active:translate-y-[1px] ${cardStyle}`}
+                    >
+                      {/* Top Row: Letter + Selection status */}
+                      <div className="flex items-center justify-between w-full mb-1.5">
+                        <span className="w-7 h-7 rounded-lg bg-black text-white border border-white/50 flex items-center justify-center font-black text-xs shrink-0">
+                          {theme.letter}
+                        </span>
+                        {isSelected && (
+                          <span className="px-1.5 py-0.5 rounded bg-black text-[#FBBC05] text-[10px] font-black uppercase">
+                            Locked ✓
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Prominent Image Display */}
+                      {opt.mediaUrl ? (
+                        <div className="w-full h-28 sm:h-36 bg-white rounded-xl border border-black/30 p-1.5 flex items-center justify-center overflow-hidden">
+                          <img
+                            src={opt.mediaUrl}
+                            alt=""
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-full h-28 sm:h-36 flex items-center justify-center">
+                          <span className="font-black text-sm text-center leading-tight">
+                            {opt.text}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Optional Text */}
+                      {opt.mediaUrl && opt.text && (
+                        <span className="font-black text-xs sm:text-sm text-center leading-tight mt-1.5 line-clamp-2 w-full">
+                          {opt.text}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {currentQ.options.map((opt, idx) => {
+                  const colors = [
+                    { bg: 'bg-[#EA4335]', border: 'border-black', letter: 'A' },
+                    { bg: 'bg-[#4285F4]', border: 'border-black', letter: 'B' },
+                    { bg: 'bg-[#FBBC05]', border: 'border-black', letter: 'C' },
+                    { bg: 'bg-[#34A853]', border: 'border-black', letter: 'D' },
+                  ];
+                  const theme = colors[idx % 4];
+                  const isSelected = selectedOptionId === opt.id;
+
+                  let cardStyle = `${theme.bg} ${theme.border} text-white`;
+                  if (idx === 2) cardStyle = `${theme.bg} ${theme.border} text-black`;
+
+                  if (selectedOptionId) {
+                    if (isSelected) {
+                      cardStyle = 'bg-black text-[#FBBC05] border-black ring-4 ring-[#FBBC05] scale-[1.02] shadow-[4px_4px_0_0_#000]';
+                    } else {
+                      cardStyle += ' opacity-40 grayscale-[60%]';
+                    }
+                  }
+
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      disabled={Boolean(selectedOptionId)}
+                      onClick={() => handleSelectOption(opt.id)}
+                      className={`p-3.5 rounded-xl border-[2.5px] font-black text-xs sm:text-sm text-left flex items-center gap-3 transition-all cursor-pointer shadow-[2.5px_2.5px_0_0_#000] active:translate-x-[1px] active:translate-y-[1px] ${cardStyle}`}
+                    >
+                      <span className="w-7 h-7 rounded-lg bg-black text-white border border-white/40 flex items-center justify-center font-black text-xs shrink-0">
+                        {theme.letter}
+                      </span>
+                      <span className="truncate leading-tight">{opt.text}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Suspenseful Locked Indicator (NO ANSWER REVEALED MID-GAME) */}
             {selectedOptionId ? (

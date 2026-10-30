@@ -526,47 +526,107 @@ export function PlayerPage() {
             )}
           </Card>
 
-          {/* 4 Large Tactile Mobile Choice Buttons */}
-          <div className="grid grid-cols-1 gap-2.5">
-            {activeQ.options.map((opt, idx) => {
-              const colors = [
-                { bg: 'bg-[#EA4335]', border: 'border-black', letter: 'A' },
-                { bg: 'bg-[#4285F4]', border: 'border-black', letter: 'B' },
-                { bg: 'bg-[#FBBC05]', border: 'border-black', letter: 'C' },
-                { bg: 'bg-[#34A853]', border: 'border-black', letter: 'D' },
-              ];
-              const theme = colors[idx % 4];
-              const isSelected = selectedOptionId === opt.id;
+          {/* 4 Tactile Mobile Choice Buttons: 2 Rows Grid for Images, 1 Column for Text */}
+          {activeQ.options.some((opt) => Boolean(opt.mediaUrl)) ? (
+            <div className="grid grid-cols-2 gap-3">
+              {activeQ.options.map((opt, idx) => {
+                const colors = [
+                  { bg: 'bg-[#EA4335]', border: 'border-black', letter: 'A' },
+                  { bg: 'bg-[#4285F4]', border: 'border-black', letter: 'B' },
+                  { bg: 'bg-[#FBBC05]', border: 'border-black', letter: 'C' },
+                  { bg: 'bg-[#34A853]', border: 'border-black', letter: 'D' },
+                ];
+                const theme = colors[idx % 4];
+                const isSelected = selectedOptionId === opt.id;
 
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  disabled={Boolean(selectedOptionId)}
-                  onClick={() => handleOptionSelect(opt.id)}
-                  className={`w-full p-4 rounded-2xl border-[3px] ${theme.border} ${theme.bg} text-white font-black text-base text-left flex items-center gap-3 transition-all cursor-pointer shadow-[3px_3px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
-                    idx === 2 ? 'text-black' : 'text-white'
-                  } ${
-                    selectedOptionId && !isSelected ? 'opacity-40 grayscale-[50%]' : ''
-                  } ${
-                    isSelected ? 'ring-4 ring-black scale-[1.02] shadow-[5px_5px_0_0_#000]' : ''
-                  }`}
-                >
-                  <span className="w-8 h-8 rounded-xl bg-black text-white border border-white/50 flex items-center justify-center font-black text-sm shrink-0">
-                    {theme.letter}
-                  </span>
-                  {opt.mediaUrl && (
-                    <img
-                      src={opt.mediaUrl}
-                      alt=""
-                      className="w-11 h-11 object-cover rounded-lg border-2 border-black/30 bg-white/20 shrink-0 shadow-[1px_1px_0_0_#000]"
-                    />
-                  )}
-                  <span className="truncate leading-tight">{opt.text}</span>
-                </button>
-              );
-            })}
-          </div>
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    disabled={Boolean(selectedOptionId)}
+                    onClick={() => handleOptionSelect(opt.id)}
+                    className={`w-full p-2.5 sm:p-3 rounded-2xl border-[3px] ${theme.border} ${theme.bg} flex flex-col justify-between transition-all cursor-pointer shadow-[3px_3px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                      idx === 2 ? 'text-black' : 'text-white'
+                    } ${
+                      selectedOptionId && !isSelected ? 'opacity-40 grayscale-[50%]' : ''
+                    } ${
+                      isSelected ? 'ring-4 ring-black scale-[1.02] shadow-[5px_5px_0_0_#000]' : ''
+                    }`}
+                  >
+                    {/* Top Row: Badge + Selected indicator */}
+                    <div className="flex items-center justify-between w-full mb-1.5">
+                      <span className="w-7 h-7 rounded-lg bg-black text-white border border-white/50 flex items-center justify-center font-black text-xs shrink-0">
+                        {theme.letter}
+                      </span>
+                      {isSelected && (
+                        <span className="px-1.5 py-0.5 rounded bg-black text-[#FBBC05] text-[10px] font-black uppercase">
+                          Selected ✓
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Prominent High-Visibility Image */}
+                    {opt.mediaUrl ? (
+                      <div className="w-full h-28 sm:h-36 bg-white rounded-xl border border-black/30 p-1.5 flex items-center justify-center overflow-hidden">
+                        <img
+                          src={opt.mediaUrl}
+                          alt={opt.text || `Option ${theme.letter}`}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-28 sm:h-36 flex items-center justify-center">
+                        <span className="font-black text-sm text-center leading-tight">
+                          {opt.text}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Optional Label Under Image */}
+                    {opt.mediaUrl && opt.text && (
+                      <span className="font-black text-xs sm:text-sm text-center leading-tight mt-1.5 line-clamp-2 w-full">
+                        {opt.text}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-2.5">
+              {activeQ.options.map((opt, idx) => {
+                const colors = [
+                  { bg: 'bg-[#EA4335]', border: 'border-black', letter: 'A' },
+                  { bg: 'bg-[#4285F4]', border: 'border-black', letter: 'B' },
+                  { bg: 'bg-[#FBBC05]', border: 'border-black', letter: 'C' },
+                  { bg: 'bg-[#34A853]', border: 'border-black', letter: 'D' },
+                ];
+                const theme = colors[idx % 4];
+                const isSelected = selectedOptionId === opt.id;
+
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    disabled={Boolean(selectedOptionId)}
+                    onClick={() => handleOptionSelect(opt.id)}
+                    className={`w-full p-4 rounded-2xl border-[3px] ${theme.border} ${theme.bg} text-white font-black text-base text-left flex items-center gap-3 transition-all cursor-pointer shadow-[3px_3px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
+                      idx === 2 ? 'text-black' : 'text-white'
+                    } ${
+                      selectedOptionId && !isSelected ? 'opacity-40 grayscale-[50%]' : ''
+                    } ${
+                      isSelected ? 'ring-4 ring-black scale-[1.02] shadow-[5px_5px_0_0_#000]' : ''
+                    }`}
+                  >
+                    <span className="w-8 h-8 rounded-xl bg-black text-white border border-white/50 flex items-center justify-center font-black text-sm shrink-0">
+                      {theme.letter}
+                    </span>
+                    <span className="truncate leading-tight">{opt.text}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {selectedOptionId && (
             <div className="p-3 bg-[#EEFBF3] border-[2px] border-[#34A853] rounded-xl text-center text-xs font-black text-[#0D2818] shadow-[2px_2px_0_0_#34A853] animate-fade-in">

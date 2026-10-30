@@ -685,28 +685,30 @@ export function GameEditor({ game, adminKey, onSave, onPublish, onBack, onDelete
 
                     {/* Option Image Attachment Section */}
                     {opt.mediaUrl ? (
-                      <div className="flex items-center gap-2.5 p-2 bg-[#FFFDF0] border border-black/30 rounded-lg">
-                        <img
-                          src={opt.mediaUrl}
-                          alt={`Preview for ${theme.label}`}
-                          className="w-11 h-11 object-cover rounded border border-black shrink-0 bg-white shadow-[1px_1px_0_0_#000]"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-[10px] font-black uppercase text-[#34A853] block truncate">
-                            ✓ Image Attached
+                      <div className="flex flex-col gap-2 p-2.5 bg-[#FFFDF0] border border-black/40 rounded-xl shadow-[2px_2px_0_0_#000]">
+                        <div className="relative w-full h-32 bg-white rounded-lg border-[1.5px] border-black flex items-center justify-center p-2 overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.06)]">
+                          <img
+                            src={opt.mediaUrl}
+                            alt={`Preview for ${theme.label}`}
+                            className="w-full h-full object-contain"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateOption(idx, 'mediaUrl', '')}
+                            className="absolute top-2 right-2 p-1.5 bg-white/95 hover:bg-[#EA4335] hover:text-white border-[1.5px] border-black rounded-lg text-black transition-colors shadow-[1px_1px_0_0_#000] cursor-pointer"
+                            title="Remove Image"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="font-black uppercase text-[#34A853] flex items-center gap-1">
+                            ✓ Image Attached (Full View)
                           </span>
-                          <span className="text-[9px] text-black/50 font-mono truncate block" title={opt.mediaUrl}>
+                          <span className="text-black/50 font-mono truncate max-w-[140px]" title={opt.mediaUrl}>
                             {opt.mediaUrl.startsWith('data:') ? 'Inline WebP' : opt.mediaUrl.split('/').pop()}
                           </span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateOption(idx, 'mediaUrl', '')}
-                          className="p-1 text-black/60 hover:text-[#EA4335] hover:bg-black/5 rounded cursor-pointer transition-colors"
-                          title="Remove Image"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">

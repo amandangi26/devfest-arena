@@ -537,56 +537,120 @@ export function StagePage() {
             </Card>
 
             {/* 4 Colored Option Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {activeQuestion.options.map((opt, idx) => {
-                const colors = [
-                  { bg: 'bg-[#EA4335]', text: 'text-white', letter: 'A', id: 'opt_1' },
-                  { bg: 'bg-[#4285F4]', text: 'text-white', letter: 'B', id: 'opt_2' },
-                  { bg: 'bg-[#FBBC05]', text: 'text-black', letter: 'C', id: 'opt_3' },
-                  { bg: 'bg-[#34A853]', text: 'text-white', letter: 'D', id: 'opt_4' },
-                ];
-                const theme = colors[idx % 4];
-                const isCorrect = isRevealed && resultsBreakdown?.correctOptionId === opt.id;
-                const voteCount = isRevealed ? resultsBreakdown?.[opt.id] || 0 : null;
+            {activeQuestion.options.some((opt) => Boolean(opt.mediaUrl)) ? (
+              /* 2 Rows x 2 Columns Grid for Image Options (Kahoot/Quizizz style) */
+              <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                {activeQuestion.options.map((opt, idx) => {
+                  const colors = [
+                    { bg: 'bg-[#EA4335]', text: 'text-white', letter: 'A', id: 'opt_1' },
+                    { bg: 'bg-[#4285F4]', text: 'text-white', letter: 'B', id: 'opt_2' },
+                    { bg: 'bg-[#FBBC05]', text: 'text-black', letter: 'C', id: 'opt_3' },
+                    { bg: 'bg-[#34A853]', text: 'text-white', letter: 'D', id: 'opt_4' },
+                  ];
+                  const theme = colors[idx % 4];
+                  const isCorrect = isRevealed && resultsBreakdown?.correctOptionId === opt.id;
+                  const voteCount = isRevealed ? resultsBreakdown?.[opt.id] || 0 : null;
 
-                return (
-                  <div
-                    key={opt.id}
-                    className={`p-4 sm:p-5 rounded-2xl border-[3px] border-black shadow-[4px_4px_0_0_#000] flex items-center justify-between gap-4 transition-all ${theme.bg
-                      } ${theme.text} ${isRevealed && !isCorrect ? 'opacity-40 grayscale-[40%]' : ''
-                      } ${isCorrect ? 'ring-4 ring-[#0D2818] scale-[1.02]' : ''
-                      }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-9 h-9 rounded-xl bg-black text-white border-[2px] border-white/60 flex items-center justify-center font-black text-lg shrink-0 shadow-[1px_1px_0_0_#000]">
-                        {theme.letter}
-                      </span>
-                      {opt.mediaUrl && (
-                        <img
-                          src={opt.mediaUrl}
-                          alt={opt.text || `Option ${theme.letter}`}
-                          className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-xl border-2 border-black/40 bg-white/20 shrink-0 shadow-[1.5px_1.5px_0_0_#000]"
-                        />
-                      )}
-                      <span className="font-black text-base sm:text-xl leading-snug truncate">
-                        {opt.text}
-                      </span>
-                    </div>
-
-                    {isRevealed && (
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-mono font-black text-lg bg-black text-white px-2.5 py-1 rounded-lg">
-                          {voteCount}
+                  return (
+                    <div
+                      key={opt.id}
+                      className={`p-3.5 sm:p-5 rounded-2xl border-[3px] border-black shadow-[5px_5px_0_0_#000] flex flex-col justify-between transition-all ${
+                        theme.bg
+                      } ${theme.text} ${
+                        isRevealed && !isCorrect ? 'opacity-40 grayscale-[40%]' : ''
+                      } ${isCorrect ? 'ring-4 ring-[#0D2818] scale-[1.02]' : ''}`}
+                    >
+                      {/* Top Header: Badge + Live Votes on reveal */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-black text-white border-[2px] border-white/60 flex items-center justify-center font-black text-lg sm:text-xl shrink-0 shadow-[1.5px_1.5px_0_0_#000]">
+                          {theme.letter}
                         </span>
-                        {isCorrect && (
-                          <CheckCircle2 className="w-7 h-7 text-white drop-shadow-[2px_2px_0_#000]" />
+
+                        {isRevealed && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-mono font-black text-base sm:text-lg bg-black text-white px-2.5 py-1 rounded-lg shadow-[1px_1px_0_0_#000]">
+                              {voteCount} {voteCount === 1 ? 'vote' : 'votes'}
+                            </span>
+                            {isCorrect && (
+                              <CheckCircle2 className="w-7 h-7 text-white drop-shadow-[2px_2px_0_#000]" />
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+
+                      {/* Prominent High-Resolution Image Container */}
+                      {opt.mediaUrl ? (
+                        <div className="w-full h-40 sm:h-52 md:h-64 bg-white rounded-xl border-2 border-black/40 p-2 sm:p-3 flex items-center justify-center overflow-hidden shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]">
+                          <img
+                            src={opt.mediaUrl}
+                            alt={opt.text || `Option ${theme.letter}`}
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-full h-40 sm:h-52 md:h-64 flex items-center justify-center">
+                          <span className="font-black text-lg sm:text-2xl text-center leading-snug">
+                            {opt.text}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Option Text Label below image if provided */}
+                      {opt.mediaUrl && opt.text && (
+                        <span className="font-black text-base sm:text-xl text-center leading-snug mt-2.5 block truncate">
+                          {opt.text}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Original Text-Only Horizontal Cards Layout */
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {activeQuestion.options.map((opt, idx) => {
+                  const colors = [
+                    { bg: 'bg-[#EA4335]', text: 'text-white', letter: 'A', id: 'opt_1' },
+                    { bg: 'bg-[#4285F4]', text: 'text-white', letter: 'B', id: 'opt_2' },
+                    { bg: 'bg-[#FBBC05]', text: 'text-black', letter: 'C', id: 'opt_3' },
+                    { bg: 'bg-[#34A853]', text: 'text-white', letter: 'D', id: 'opt_4' },
+                  ];
+                  const theme = colors[idx % 4];
+                  const isCorrect = isRevealed && resultsBreakdown?.correctOptionId === opt.id;
+                  const voteCount = isRevealed ? resultsBreakdown?.[opt.id] || 0 : null;
+
+                  return (
+                    <div
+                      key={opt.id}
+                      className={`p-4 sm:p-5 rounded-2xl border-[3px] border-black shadow-[4px_4px_0_0_#000] flex items-center justify-between gap-4 transition-all ${theme.bg
+                        } ${theme.text} ${isRevealed && !isCorrect ? 'opacity-40 grayscale-[40%]' : ''
+                        } ${isCorrect ? 'ring-4 ring-[#0D2818] scale-[1.02]' : ''
+                        }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="w-9 h-9 rounded-xl bg-black text-white border-[2px] border-white/60 flex items-center justify-center font-black text-lg shrink-0 shadow-[1px_1px_0_0_#000]">
+                          {theme.letter}
+                        </span>
+                        <span className="font-black text-base sm:text-xl leading-snug truncate">
+                          {opt.text}
+                        </span>
+                      </div>
+
+                      {isRevealed && (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-mono font-black text-lg bg-black text-white px-2.5 py-1 rounded-lg">
+                            {voteCount}
+                          </span>
+                          {isCorrect && (
+                            <CheckCircle2 className="w-7 h-7 text-white drop-shadow-[2px_2px_0_#000]" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Explanation Note on Reveal */}
             {isRevealed && activeQuestion.explanation && (
