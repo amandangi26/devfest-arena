@@ -711,6 +711,7 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
         selectedGame ? (
           <GameEditor
             game={selectedGame}
+            adminKey={adminKey}
             isSaving={isSavingGame}
             onSave={handleSaveGame}
             onPublish={handlePublishGame}

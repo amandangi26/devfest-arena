@@ -423,6 +423,13 @@ export function SoloPracticeModal({ gameId, isOpen, onClose }) {
                     <span className="w-7 h-7 rounded-lg bg-black text-white border border-white/40 flex items-center justify-center font-black text-xs shrink-0">
                       {theme.letter}
                     </span>
+                    {opt.mediaUrl && (
+                      <img
+                        src={opt.mediaUrl}
+                        alt=""
+                        className="w-10 h-10 object-cover rounded-lg border border-black/30 bg-white/20 shrink-0 shadow-[1px_1px_0_0_#000]"
+                      />
+                    )}
                     <span className="truncate leading-tight">{opt.text}</span>
                   </button>
                 );

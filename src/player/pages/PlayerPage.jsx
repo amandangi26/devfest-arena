@@ -555,6 +555,13 @@ export function PlayerPage() {
                   <span className="w-8 h-8 rounded-xl bg-black text-white border border-white/50 flex items-center justify-center font-black text-sm shrink-0">
                     {theme.letter}
                   </span>
+                  {opt.mediaUrl && (
+                    <img
+                      src={opt.mediaUrl}
+                      alt=""
+                      className="w-11 h-11 object-cover rounded-lg border-2 border-black/30 bg-white/20 shrink-0 shadow-[1px_1px_0_0_#000]"
+                    />
+                  )}
                   <span className="truncate leading-tight">{opt.text}</span>
                 </button>
               );

@@ -2,16 +2,22 @@ import { z } from 'zod';
 
 export const optionSchema = z.object({
   id: z.string().trim().min(1, 'Option ID is required'),
-  text: z.string().trim().min(1, 'Option text cannot be empty'),
-  mediaUrl: z.string().trim().url('Option media must be a valid URL').optional().or(z.literal('')),
-});
+  text: z.string().trim().default(''),
+  mediaUrl: z.string().trim().optional().or(z.literal('')),
+}).refine(
+  (data) => (data.text && data.text.length > 0) || (data.mediaUrl && data.mediaUrl.length > 0),
+  {
+    message: 'Option must have either text or an image',
+    path: ['text'],
+  }
+);
 
 export const questionSchema = z.object({
   questionId: z.string().trim().optional(),
   order: z.number().int().min(1).optional(),
   prompt: z.string().trim().min(5, 'Question prompt must be at least 5 characters long'),
   codeSnippet: z.string().optional().or(z.literal('')),
-  mediaUrl: z.string().trim().url('Media URL must be valid').optional().or(z.literal('')),
+  mediaUrl: z.string().trim().optional().or(z.literal('')),
   icon: z.string().default('HelpCircle'),
   options: z
     .array(optionSchema)

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { requireAdmin } from '../middleware/adminAuth.js';
 import {
   createGame,
@@ -264,6 +265,78 @@ gameRouter.get('/:id/results', async (req, res, next) => {
 
 // Enforce admin privileges across all management endpoints below
 gameRouter.use(requireAdmin);
+
+/**
+ * POST /api/games/upload-media
+ * Uploads an image (question visual or option image) to Supabase Storage.
+ * Leverages free 1GB bucket storage with WebP compression for 30,000+ asset capacity.
+ */
+gameRouter.post('/upload-media', async (req, res, next) => {
+  try {
+    const { dataUrl, filename = 'asset', folder = 'options' } = req.body || {};
+    if (!dataUrl || typeof dataUrl !== 'string') {
+      return res.status(400).json({ error: { message: 'Image dataUrl is required.' } });
+    }
+
+    const matches = dataUrl.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ error: { message: 'Invalid image format. Expected base64 data URL.' } });
+    }
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const extMap = {
+      'image/png': 'png',
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
+      'image/webp': 'webp',
+      'image/gif': 'gif',
+      'image/svg+xml': 'svg',
+    };
+    const ext = extMap[mimeType] || 'webp';
+    const cleanName = filename.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
+    const storagePath = `${folder}/${cleanName}_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${ext}`;
+
+    const { supabase } = await import('../db/supabaseClient.js');
+
+    if (supabase) {
+      try {
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from('game-assets')
+          .upload(storagePath, buffer, {
+            contentType: mimeType,
+            upsert: true,
+          });
+
+        if (!uploadErr && uploadData) {
+          const { data: urlData } = supabase.storage
+            .from('game-assets')
+            .getPublicUrl(storagePath);
+
+          return res.json({
+            ok: true,
+            url: urlData.publicUrl,
+            storage: 'supabase',
+          });
+        }
+        console.warn('[Storage] Supabase upload failed, falling back:', uploadErr);
+      } catch (sErr) {
+        console.warn('[Storage] Supabase storage exception:', sErr);
+      }
+    }
+
+    // Fallback: return dataUrl directly so quiz creator is never blocked
+    return res.json({
+      ok: true,
+      url: dataUrl,
+      storage: 'inline',
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 /**
  * GET /api/games

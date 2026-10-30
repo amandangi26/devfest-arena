@@ -21,9 +21,11 @@ export function createApp() {
   app.use(cookieParser());
 
   // Security & DoS Protection: Restrict body parser limits
-  // 1. High-capacity parser specifically for large CSV imports & batch ingest
+  // 1. High-capacity parser specifically for large CSV imports & image uploads
   app.use('/api/attendees/import', express.json({ limit: '15mb' }));
   app.use('/api/attendees/import', express.urlencoded({ extended: true, limit: '15mb' }));
+  app.use('/api/games/upload-media', express.json({ limit: '10mb' }));
+  app.use('/api/games/upload-media', express.urlencoded({ extended: true, limit: '10mb' }));
 
   // 2. Strict 1MB limit for all other API endpoints (auth, room joining, answer submission)
   app.use(express.json({ limit: '1mb' }));

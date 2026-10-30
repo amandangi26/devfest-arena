@@ -561,6 +561,13 @@ export function StagePage() {
                       <span className="w-9 h-9 rounded-xl bg-black text-white border-[2px] border-white/60 flex items-center justify-center font-black text-lg shrink-0 shadow-[1px_1px_0_0_#000]">
                         {theme.letter}
                       </span>
+                      {opt.mediaUrl && (
+                        <img
+                          src={opt.mediaUrl}
+                          alt={opt.text || `Option ${theme.letter}`}
+                          className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-xl border-2 border-black/40 bg-white/20 shrink-0 shadow-[1.5px_1.5px_0_0_#000]"
+                        />
+                      )}
                       <span className="font-black text-base sm:text-xl leading-snug truncate">
                         {opt.text}
                       </span>
