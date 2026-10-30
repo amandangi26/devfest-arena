@@ -912,11 +912,15 @@ export const db = {
         .select('*')
         .limit(2500);
 
+      memoryStore.attendees.clear();
+      memoryStore.attendeeByUniqueCode.clear();
       if (atts && atts.length > 0) {
         for (const a of atts) {
           memoryStore.upsertAttendee(a);
         }
         console.log(`[Database] Pre-warmed ${atts.length} attendees in-memory.`);
+      } else {
+        console.log('[Database] 0 attendees found in Supabase.');
       }
 
       // 2. Preload attendee tracks
@@ -925,6 +929,7 @@ export const db = {
         .select('*')
         .limit(5000);
 
+      memoryStore.attendeeTracks.clear();
       if (trks && trks.length > 0) {
         for (const t of trks) {
           memoryStore.addAttendeeTrack(t);
