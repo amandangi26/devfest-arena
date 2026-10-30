@@ -6,6 +6,9 @@ import {
   normalizeTrackId,
   parseCSV,
   importAttendees,
+  resolveTargetColumns,
+  previewAttendeeImport,
+  TARGET_COLUMNS,
 } from '../../server/services/attendeeImportService.js';
 import { db } from '../../server/db/index.js';
 
@@ -89,6 +92,68 @@ DFR26-005,,no_name@example.com,9876543214,Conference Only,Ranchi University`;
       // Verify track assignment
       const tracks = await db.getAttendeeTracks(attendee1.id);
       expect(tracks).toContain('flagship-dev');
+    });
+  });
+
+  describe('resolveTargetColumns', () => {
+    it('accurately resolves all 7 target columns and isolates ignored survey columns', () => {
+      const headers = [
+        'Timestamp',
+        'Ticket Code',
+        'Attendee Name',
+        'Email Address',
+        'Phone Number',
+        'Track / Registration Status',
+        'Organization / College & Location',
+        'Designation / Domain',
+        'T-Shirt Size',
+        'Food Preference',
+      ];
+
+      const res = resolveTargetColumns(headers);
+      expect(res.mapping.uniqueCode.matchedHeader).toBe('Ticket Code');
+      expect(res.mapping.name.matchedHeader).toBe('Attendee Name');
+      expect(res.mapping.email.matchedHeader).toBe('Email Address');
+      expect(res.mapping.phone.matchedHeader).toBe('Phone Number');
+      expect(res.mapping.track.matchedHeader).toBe('Track / Registration Status');
+      expect(res.mapping.organization.matchedHeader).toBe('Organization / College & Location');
+      expect(res.mapping.designation.matchedHeader).toBe('Designation / Domain');
+
+      expect(res.missingRequired).toHaveLength(0);
+      expect(res.ignoredColumns).toContain('Timestamp');
+      expect(res.ignoredColumns).toContain('T-Shirt Size');
+      expect(res.ignoredColumns).toContain('Food Preference');
+    });
+
+    it('flags missing required fields when Unique Code or Name is missing', () => {
+      const headers = ['Email', 'Phone', 'College'];
+      const res = resolveTargetColumns(headers);
+      expect(res.missingRequired).toContain('Ticket / Unique Code');
+      expect(res.missingRequired).toContain('Full Name');
+    });
+  });
+
+  describe('previewAttendeeImport', () => {
+    it('provides dry-run preview with column mapping and first rows', () => {
+      const csv = `Ticket Code,Full Name,Email,Mobile Number,Track,College,Designation,ExtraSurveyField
+DFR26-P01,Aman Dangi,aman@gdgranchi.in,+91 98765-43210,Flagship Dev Track,BIT Mesra,Engineer,Yes
+DFR26-P02,Priya Kumari,priya@example.com,9876543211,Beginner Track,IIT ISM,Student,No
+,Invalid Row,test@test.com,9999999999,All,College,Dev,Maybe`;
+
+      const preview = previewAttendeeImport({ csvText: csv, previewLimit: 5 });
+
+      expect(preview.totalRows).toBe(3);
+      expect(preview.validCount).toBe(2);
+      expect(preview.quarantinedCount).toBe(1);
+      expect(preview.ignoredColumns).toContain('extrasurveyfield');
+      expect(preview.previewRows).toHaveLength(3);
+      expect(preview.previewRows[0].uniqueCode).toBe('DFR26-P01');
+      expect(preview.previewRows[0].displayName).toBe('Aman D.');
+      expect(preview.previewRows[0].phone).toBe('9876543210');
+      expect(preview.previewRows[0].trackId).toBe('flagship-dev');
+      expect(preview.previewRows[0].isValid).toBe(true);
+      expect(preview.previewRows[2].isValid).toBe(false);
+      expect(preview.previewRows[2].quarantineReason).toBe('Missing unique ticket code');
     });
   });
 });

@@ -45,6 +45,22 @@ DFR26-A${runId}2,Vikram Singh,vikram${runId}@example.com,9876543221,Conference O
       expect(listRes.status).toBe(200);
       expect(listRes.body.total).toBeGreaterThanOrEqual(2);
     });
+
+    it('generates dry-run preview via POST /api/attendees/preview-import', async () => {
+      const csv = `Ticket Code,Full Name,Email,Phone Number,ExtraCol\nDFR26-PREV1,Rohan Das,rohan@example.com,9876543299,Unused`;
+      const res = await request(app)
+        .post('/api/attendees/preview-import')
+        .set('x-admin-key', config.adminApiKey)
+        .send({ csvText: csv });
+
+      expect(res.status).toBe(200);
+      expect(res.body.ok).toBe(true);
+      expect(res.body.preview.totalRows).toBe(1);
+      expect(res.body.preview.validCount).toBe(1);
+      expect(res.body.preview.ignoredColumns).toContain('extracol');
+      expect(res.body.preview.previewRows[0].uniqueCode).toBe('DFR26-PREV1');
+      expect(res.body.preview.previewRows[0].displayName).toBe('Rohan D.');
+    });
   });
 
   describe('POST /api/attendees/:uniqueCode/check-in', () => {

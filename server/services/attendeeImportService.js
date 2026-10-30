@@ -105,7 +105,251 @@ export function parseCSV(csvContent) {
 }
 
 /**
+ * Definitions for the accepted event attendee columns.
+ * Matches official DevFest Ranchi recommendations (Email, Phone, Track, College, Role + Ticket Code & Name).
+ */
+export const TARGET_COLUMNS = [
+  {
+    key: 'uniqueCode',
+    label: 'Ticket / Unique Code',
+    required: true,
+    aliases: ['unique code', 'ticket code', 'ticket id', 'registration code', 'uniquecode', 'ticket', 'ticket_code', 'code'],
+    example: 'DFR26-A101',
+    description: 'Unique login and verification code',
+  },
+  {
+    key: 'name',
+    label: 'Full Name',
+    required: true,
+    aliases: ['name', 'full name', 'attendee name', 'fullname', 'full_name', 'attendee_name', 'student name', 'candidate name'],
+    example: 'Aman Dangi',
+    description: 'Generates privacy-preserving display name (e.g. Aman D.)',
+  },
+  {
+    key: 'email',
+    label: 'Email',
+    required: false,
+    aliases: ['email', 'email address', 'email id', 'email_address', 'email_id', 'mail'],
+    example: 'aman@gdgranchi.in',
+    description: 'Small letters & trim ho jata hai',
+  },
+  {
+    key: 'phone',
+    label: 'Phone',
+    required: false,
+    aliases: ['phone number', 'phone', 'mobile number', 'contact', 'phone_number', 'mobile_number', 'contact number', 'mobile', 'phone no', 'mobile no'],
+    example: '+91 98765-43210',
+    description: '+91, 0, spaces hatkar 10-digit number ban jata hai',
+  },
+  {
+    key: 'track',
+    label: 'Track',
+    required: false,
+    aliases: ['track / registration status', 'track', 'category', 'ticket type', 'track / registration', 'registration status', 'ticket_type', 'track_name', 'track name'],
+    example: 'Flagship Dev Track',
+    description: 'Games ko specific track ke liye target karne me kaam aata hai',
+  },
+  {
+    key: 'organization',
+    label: 'College / Org',
+    required: false,
+    aliases: ['organization / college & location', 'organization', 'college', 'company', 'organization / college', 'college & location', 'institute', 'institution', 'college name', 'company name'],
+    example: 'BIT Mesra',
+    description: 'Attendee info me save hota hai',
+  },
+  {
+    key: 'designation',
+    label: 'Role / Domain',
+    required: false,
+    aliases: ['designation / domain', 'designation', 'role', 'domain', 'designation / role', 'job title', 'role / domain'],
+    example: 'Software Engineer',
+    description: 'Attendee profile me save hota hai',
+  },
+];
+
+/**
+ * Maps raw CSV headers against the 7 target columns.
+ * Identifies mapped headers and collects all unneeded/extra columns into ignoredColumns.
+ */
+export function resolveTargetColumns(rawHeaders) {
+  const headers = (rawHeaders || []).map((h) => String(h).trim());
+  const mapping = {};
+  const matchedHeaders = new Set();
+
+  for (const target of TARGET_COLUMNS) {
+    let matchedHeader = null;
+
+    // 1. Direct lowercase match
+    for (const h of headers) {
+      const lower = h.toLowerCase();
+      if (target.aliases.includes(lower)) {
+        matchedHeader = h;
+        break;
+      }
+    }
+
+    // 2. Alphanumeric normalized fallback match
+    if (!matchedHeader) {
+      for (const h of headers) {
+        const normH = h.toLowerCase().replace(/[^a-z0-9]/g, '');
+        for (const alias of target.aliases) {
+          const normA = alias.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (normH === normA) {
+            matchedHeader = h;
+            break;
+          }
+        }
+        if (matchedHeader) break;
+      }
+    }
+
+    mapping[target.key] = {
+      key: target.key,
+      label: target.label,
+      required: target.required,
+      example: target.example,
+      description: target.description,
+      matchedHeader,
+      found: Boolean(matchedHeader),
+    };
+
+    if (matchedHeader) {
+      matchedHeaders.add(matchedHeader);
+    }
+  }
+
+  const ignoredColumns = headers.filter((h) => !matchedHeaders.has(h));
+  const missingRequired = TARGET_COLUMNS.filter((t) => t.required && !mapping[t.key].found).map((t) => t.label);
+
+  return {
+    mapping,
+    ignoredColumns,
+    missingRequired,
+  };
+}
+
+/**
+ * Generates an instant dry-run preview of an attendee CSV import.
+ * Detects target columns, runs validations, and returns sample preview rows without DB writes.
+ */
+export function previewAttendeeImport({ csvText, rawRows, previewLimit = 10 }) {
+  const rows = rawRows || parseCSV(csvText);
+  if (!rows || rows.length === 0) {
+    return {
+      totalRows: 0,
+      validCount: 0,
+      quarantinedCount: 0,
+      columnMapping: {},
+      ignoredColumns: [],
+      missingRequired: ['Ticket / Unique Code', 'Full Name'],
+      previewRows: [],
+      quarantineSamples: [],
+      trackCounts: {},
+    };
+  }
+
+  const headers = Object.keys(rows[0] || {});
+  const { mapping, ignoredColumns, missingRequired } = resolveTargetColumns(headers);
+
+  const seenCodes = new Set();
+  const previewRows = [];
+  const quarantineSamples = [];
+  const trackCounts = {
+    'flagship-dev': 0,
+    'beginner-track': 0,
+    'conference-only': 0,
+    all: 0,
+  };
+  let validCount = 0;
+  let quarantinedCount = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const rowNum = i + 2;
+
+    const rawUniqueCode = mapping.uniqueCode.matchedHeader ? r[mapping.uniqueCode.matchedHeader] : (r['unique code'] || r['ticket code'] || r['ticket id'] || r['registration code'] || r['uniquecode'] || r['code']);
+    const rawName = mapping.name.matchedHeader ? r[mapping.name.matchedHeader] : (r['name'] || r['full name'] || r['attendee name'] || r['fullname']);
+    const rawEmail = mapping.email.matchedHeader ? r[mapping.email.matchedHeader] : (r['email'] || r['email address'] || r['email id']);
+    const rawPhone = mapping.phone.matchedHeader ? r[mapping.phone.matchedHeader] : (r['phone number'] || r['phone'] || r['mobile number'] || r['contact']);
+    const rawTrack = mapping.track.matchedHeader ? r[mapping.track.matchedHeader] : (r['track / registration status'] || r['track'] || r['category'] || r['ticket type']);
+    const rawOrg = mapping.organization.matchedHeader ? r[mapping.organization.matchedHeader] : (r['organization / college & location'] || r['organization'] || r['college'] || r['company']);
+    const rawDesig = mapping.designation.matchedHeader ? r[mapping.designation.matchedHeader] : (r['designation / domain'] || r['designation'] || r['role']);
+
+    let isValid = true;
+    let quarantineReason = null;
+
+    if (!rawUniqueCode || !String(rawUniqueCode).trim()) {
+      isValid = false;
+      quarantineReason = 'Missing unique ticket code';
+    } else {
+      const uniqueCode = String(rawUniqueCode).trim().toUpperCase();
+      if (seenCodes.has(uniqueCode)) {
+        isValid = false;
+        quarantineReason = `Duplicate ticket code: ${uniqueCode}`;
+      } else {
+        seenCodes.add(uniqueCode);
+      }
+    }
+
+    if (isValid && (!rawName || !String(rawName).trim())) {
+      isValid = false;
+      quarantineReason = 'Missing attendee name';
+    }
+
+    const uniqueCodeFormatted = rawUniqueCode ? String(rawUniqueCode).trim().toUpperCase() : '';
+    const emailNorm = normalizeEmail(rawEmail);
+    const phoneNorm = normalizePhone(rawPhone);
+    const trackId = normalizeTrackId(rawTrack);
+    const displayName = formatDisplayName(rawName);
+
+    if (isValid) {
+      validCount++;
+      trackCounts[trackId] = (trackCounts[trackId] || 0) + 1;
+    } else {
+      quarantinedCount++;
+      if (quarantineSamples.length < 5) {
+        quarantineSamples.push({
+          row: rowNum,
+          uniqueCode: uniqueCodeFormatted || 'N/A',
+          reason: quarantineReason,
+        });
+      }
+    }
+
+    if (previewRows.length < previewLimit) {
+      previewRows.push({
+        row: rowNum,
+        uniqueCode: uniqueCodeFormatted,
+        name: rawName ? String(rawName).trim() : '',
+        displayName,
+        email: emailNorm || rawEmail || '',
+        phone: phoneNorm || rawPhone || '',
+        rawTrack: rawTrack || '',
+        trackId,
+        organization: rawOrg ? String(rawOrg).trim() : '',
+        designation: rawDesig ? String(rawDesig).trim() : '',
+        isValid,
+        quarantineReason,
+      });
+    }
+  }
+
+  return {
+    totalRows: rows.length,
+    validCount,
+    quarantinedCount,
+    columnMapping: mapping,
+    ignoredColumns,
+    missingRequired,
+    previewRows,
+    quarantineSamples,
+    trackCounts,
+  };
+}
+
+/**
  * Ingestion Worker: parses, validates, normalizes, and imports attendee records.
+ * Strictly targets recommended columns while filtering out arbitrary survey metadata.
  */
 export async function importAttendees({ csvText, rawRows, sourceImportId = `import_${Date.now()}` }) {
   const rows = rawRows || parseCSV(csvText);
@@ -122,18 +366,21 @@ export async function importAttendees({ csvText, rawRows, sourceImportId = `impo
     all: 0,
   };
 
+  const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+  const { mapping } = resolveTargetColumns(headers);
+
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     const rowNum = i + 2; // header is row 1
 
-    // Disambiguate columns across Commudle / Google Forms variations
-    const rawUniqueCode = r['unique code'] || r['ticket code'] || r['ticket id'] || r['registration code'] || r['uniquecode'] || r['code'];
-    const rawName = r['name'] || r['full name'] || r['attendee name'] || r['fullname'];
-    const rawEmail = r['email'] || r['email address'] || r['email id'];
-    const rawPhone = r['phone number'] || r['phone'] || r['mobile number'] || r['contact'];
-    const rawTrack = r['track / registration status'] || r['track'] || r['category'] || r['ticket type'];
-    const rawOrg = r['organization / college & location'] || r['organization'] || r['college'] || r['company'];
-    const rawDesig = r['designation / domain'] || r['designation'] || r['role'];
+    // Extract ONLY the targeted columns
+    const rawUniqueCode = mapping.uniqueCode.matchedHeader ? r[mapping.uniqueCode.matchedHeader] : (r['unique code'] || r['ticket code'] || r['ticket id'] || r['registration code'] || r['uniquecode'] || r['code']);
+    const rawName = mapping.name.matchedHeader ? r[mapping.name.matchedHeader] : (r['name'] || r['full name'] || r['attendee name'] || r['fullname']);
+    const rawEmail = mapping.email.matchedHeader ? r[mapping.email.matchedHeader] : (r['email'] || r['email address'] || r['email id']);
+    const rawPhone = mapping.phone.matchedHeader ? r[mapping.phone.matchedHeader] : (r['phone number'] || r['phone'] || r['mobile number'] || r['contact']);
+    const rawTrack = mapping.track.matchedHeader ? r[mapping.track.matchedHeader] : (r['track / registration status'] || r['track'] || r['category'] || r['ticket type']);
+    const rawOrg = mapping.organization.matchedHeader ? r[mapping.organization.matchedHeader] : (r['organization / college & location'] || r['organization'] || r['college'] || r['company']);
+    const rawDesig = mapping.designation.matchedHeader ? r[mapping.designation.matchedHeader] : (r['designation / domain'] || r['designation'] || r['role']);
 
     // Mandatory validation
     if (!rawUniqueCode || !String(rawUniqueCode).trim()) {

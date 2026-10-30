@@ -7,6 +7,7 @@ import { GameList } from '../components/GameBuilder/GameList';
 import { GameEditor } from '../components/GameBuilder/GameEditor';
 import { GameResultsModal } from '../components/GameBuilder/GameResultsModal';
 import { LiveControlRoom } from '../components/LiveControlRoom/LiveControlRoom';
+import { CsvImportSection } from '../components/CsvImportSection';
 import { apiClient } from '../../services/api/client';
 import {
   Upload,
@@ -28,13 +29,6 @@ import {
   Square,
   X,
 } from 'lucide-react';
-
-const SAMPLE_CSV = `Unique Code,Name,Email,Phone Number,Track / Registration Status,Organization / College & Location
-DFR26-A101,Aman Dangi,aman@gdgranchi.in,+91 98765-43210,Flagship Dev Track,BIT Mesra
-DFR26-B202,Priya Kumari,priya@example.com,9876543211,Beginner Track,IIT ISM Dhanbad
-DFR26-C303,Rohan Sharma,rohan@example.com,9876543212,Conference Only,IIM Ranchi
-DFR26-D404,Kavita Sen,kavita@example.com,9876543213,Flagship Dev Track,NIT Jamshedpur
-DFR26-E505,Vikram Singh,vikram@example.com,9876543214,Beginner Track,Ranchi University`;
 
 export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, propAdminEmail: propAdminEmailAlt, onLogout }) {
   const navigate = useNavigate();
@@ -67,12 +61,6 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
   const [resultsModalGame, setResultsModalGame] = useState(null);
   const [isSavingGame, setIsSavingGame] = useState(false);
   const [gameSuccessMsg, setGameSuccessMsg] = useState(null);
-
-  // Import state
-  const [csvText, setCsvText] = useState('');
-  const [isImporting, setIsImporting] = useState(false);
-  const [importReport, setImportReport] = useState(null);
-  const [importError, setImportError] = useState(null);
 
   // Attendees list & Manual Registration state
   const [attendees, setAttendees] = useState([]);
@@ -334,47 +322,6 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
       alert(`Failed to launch battle room: ${err.message}`);
     } finally {
       setIsLoadingGames(false);
-    }
-  };
-
-  // CSV Ingestion Handlers
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setCsvText(event.target?.result || '');
-      setImportReport(null);
-      setImportError(null);
-    };
-    reader.readAsText(file);
-  };
-
-  const handleImportSubmit = async () => {
-    if (!csvText.trim()) {
-      setImportError('Please upload or paste CSV data first.');
-      return;
-    }
-
-    setIsImporting(true);
-    setImportError(null);
-    try {
-      const res = await apiClient('/attendees/import', {
-        method: 'POST',
-        headers: { 'x-admin-key': adminKey },
-        body: JSON.stringify({ csvText }),
-      });
-
-      if (res?.ok) {
-        setImportReport(res.report);
-        loadAttendees();
-      } else {
-        throw new Error(res?.error?.message || 'Import failed');
-      }
-    } catch (err) {
-      setImportError(err.data?.error?.message || err.message || 'Import failed');
-    } finally {
-      setIsImporting(false);
     }
   };
 
@@ -738,134 +685,14 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
         )
       )}
 
-      {/* TAB 2: CSV INGESTION */}
+      {/* TAB 2: CSV INGESTION & TARGETED IMPORT */}
       {activeTab === 'import' && (
-        <div className="flex flex-col gap-6">
-          <Card surface="white" shadow="md" border="thick" rounded="xl" className="p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b-2 border-black/10">
-              <div>
-                <h2 className="text-lg font-black text-black uppercase tracking-tight flex items-center gap-2">
-                  <Upload className="w-5 h-5 text-[#4285F4]" />
-                  Commudle & Google Forms CSV Ingester
-                </h2>
-                <p className="text-xs text-black/60 font-semibold mt-0.5">
-                  Upload raw 25-column event exports. Automatically maps codes, sanitizes phones/emails, and quarantines conflicts.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCsvText(SAMPLE_CSV)}
-                >
-                  <Sparkles className="w-3.5 h-3.5 inline mr-1 text-[#FBBC05]" /> Load Sample CSV
-                </Button>
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  <span className="inline-flex items-center justify-center font-black uppercase tracking-wider text-xs px-3.5 py-1.5 rounded-full border-[2.5px] border-black bg-[#FBBC05] text-black shadow-[2px_2px_0_0_#000] hover:translate-x-[1px] hover:translate-y-[1px]">
-                    Choose File
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            {importError && (
-              <div className="mb-4 p-3 bg-[#FFF5F5] border-[2px] border-[#EA4335] rounded-xl flex items-center gap-2.5 text-xs font-bold text-[#EA4335]">
-                <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span>{importError}</span>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-3">
-              <label className="text-[11px] font-black uppercase tracking-wider text-black">
-                Raw CSV Data
-              </label>
-              <textarea
-                rows={8}
-                value={csvText}
-                onChange={(e) => setCsvText(e.target.value)}
-                placeholder="Paste raw CSV content here or upload file above..."
-                className="w-full p-3 bg-[#FFFBF0] border-[2px] border-black rounded-xl font-mono text-xs text-black placeholder:text-black/40 shadow-[2px_2px_0_0_#000] focus:outline-none focus:ring-2 focus:ring-[#FBBC05]"
-              />
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <Button
-                variant="primary"
-                size="md"
-                disabled={isImporting || !csvText.trim()}
-                onClick={handleImportSubmit}
-              >
-                {isImporting ? 'Ingesting Attendees...' : 'Execute Batch Ingestion'}
-              </Button>
-            </div>
-          </Card>
-
-          {/* Import Results Report */}
-          {importReport && (
-            <Card surface="warmWhite" shadow="lg" border="thick" rounded="xl" className="p-6">
-              <h3 className="text-base font-black text-black uppercase tracking-tight mb-4 flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-[#34A853]" />
-                Ingestion Summary Report ({importReport.sourceImportId})
-              </h3>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                <div className="p-3 bg-white border-[2px] border-black rounded-xl text-center shadow-[2px_2px_0_0_#000]">
-                  <span className="text-[10px] font-black uppercase text-black/60 block">Total Rows</span>
-                  <span className="text-xl font-black text-black">{importReport.totalRows}</span>
-                </div>
-                <div className="p-3 bg-[#EEFBF3] border-[2px] border-[#34A853] rounded-xl text-center shadow-[2px_2px_0_0_#34A853]">
-                  <span className="text-[10px] font-black uppercase text-[#34A853] block">Imported</span>
-                  <span className="text-xl font-black text-[#34A853]">{importReport.importedCount}</span>
-                </div>
-                <div className="p-3 bg-[#FFF5F5] border-[2px] border-[#EA4335] rounded-xl text-center shadow-[2px_2px_0_0_#EA4335]">
-                  <span className="text-[10px] font-black uppercase text-[#EA4335] block">Quarantined</span>
-                  <span className="text-xl font-black text-[#EA4335]">{importReport.quarantinedCount}</span>
-                </div>
-                <div className="p-3 bg-[#EEF4FF] border-[2px] border-[#4285F4] rounded-xl text-center shadow-[2px_2px_0_0_#4285F4]">
-                  <span className="text-[10px] font-black uppercase text-[#4285F4] block">Flagship Dev</span>
-                  <span className="text-xl font-black text-[#4285F4]">{importReport.trackCounts?.['flagship-dev'] || 0}</span>
-                </div>
-              </div>
-
-              {/* Quarantine Errors */}
-              {importReport.quarantined?.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-black uppercase tracking-wider text-[#EA4335] mb-2 flex items-center gap-1.5">
-                    <AlertTriangle className="w-4 h-4" />
-                    Quarantined Records ({importReport.quarantined.length})
-                  </h4>
-                  <div className="max-h-48 overflow-y-auto border-[2px] border-black rounded-xl bg-white">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-[#FFF8E7] border-b-2 border-black font-black uppercase text-[10px]">
-                        <tr>
-                          <th className="p-2">Row</th>
-                          <th className="p-2">Ticket Code</th>
-                          <th className="p-2">Quarantine Reason</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {importReport.quarantined.map((q, idx) => (
-                          <tr key={idx} className="border-b border-black/10 hover:bg-[#FFF5F5]">
-                            <td className="p-2 font-mono font-bold">{q.row}</td>
-                            <td className="p-2 font-mono font-bold text-[#EA4335]">{q.uniqueCode || 'N/A'}</td>
-                            <td className="p-2 text-black/80">{q.reason}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </Card>
-          )}
-        </div>
+        <CsvImportSection
+          adminKey={adminKey}
+          apiClient={apiClient}
+          onImportSuccess={() => loadAttendees()}
+          onSwitchToAttendees={() => setActiveTab('attendees')}
+        />
       )}
 
       {/* TAB 3: ATTENDEES DIRECTORY & MANUAL ENTRY */}

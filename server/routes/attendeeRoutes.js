@@ -3,6 +3,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import {
   importAttendees,
+  previewAttendeeImport,
   formatDisplayName,
   normalizeEmail,
   normalizePhone,
@@ -123,6 +124,50 @@ const importSchema = z.object({
   csvText: z.string().optional(),
   rawRows: z.array(z.record(z.string(), z.any())).optional(),
   sourceImportId: z.string().optional(),
+});
+
+/**
+ * POST /api/attendees/preview-import
+ * Generates dry-run preview: targets recognized columns, returns summary stats,
+ * detects ignored columns, and returns parsed sample rows.
+ * Restricted to Event Administrators.
+ */
+attendeeRouter.post('/preview-import', requireAdmin, async (req, res, next) => {
+  try {
+    const parseResult = importSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'CSV text or raw rows array is required for preview.',
+          details: parseResult.error.format(),
+        },
+      });
+    }
+
+    const { csvText, rawRows } = parseResult.data;
+    if (!csvText && (!rawRows || rawRows.length === 0)) {
+      return res.status(400).json({
+        error: {
+          code: 'EMPTY_PAYLOAD',
+          message: 'Provide csvText string or rawRows array.',
+        },
+      });
+    }
+
+    const preview = previewAttendeeImport({
+      csvText,
+      rawRows,
+      previewLimit: 15,
+    });
+
+    res.json({
+      ok: true,
+      preview,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 /**
