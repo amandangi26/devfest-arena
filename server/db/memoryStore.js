@@ -46,18 +46,45 @@ class MemoryStore {
     all.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
 
     if (search && search.trim()) {
-      const term = search.toLowerCase().trim();
-      const termDigits = term.replace(/\D/g, '');
-      all = all.filter((a) => {
-        const phone = (a.phone_normalized || a.phone || '').replace(/\D/g, '');
-        return (
-          (a.name && a.name.toLowerCase().includes(term)) ||
-          (a.unique_code && a.unique_code.toLowerCase().includes(term)) ||
-          (a.email_normalized && a.email_normalized.toLowerCase().includes(term)) ||
-          (a.organization && a.organization.toLowerCase().includes(term)) ||
-          (phone && termDigits && phone.includes(termDigits))
-        );
-      });
+      const clean = search.trim().toLowerCase();
+      const digits = clean.replace(/\D/g, '');
+      const nonPhone = clean.replace(/[\d\s+\-()]/g, '');
+
+      // Pure phone / numeric search
+      if (nonPhone.length === 0 && digits.length >= 4) {
+        let phoneTerm = digits;
+        if (digits.startsWith('91') && digits.length === 12) phoneTerm = digits.slice(2);
+        else if (digits.startsWith('0') && digits.length === 11) phoneTerm = digits.slice(1);
+        else if (digits.length > 10) phoneTerm = digits.slice(-10);
+
+        all = all.filter((a) => {
+          const phone = (a.phone_normalized || a.phone || '').replace(/\D/g, '');
+          const code = (a.unique_code || a.uniqueCode || '').toLowerCase();
+          return phone.includes(phoneTerm) || code.includes(clean);
+        });
+      } else {
+        const words = clean
+          .replace(/[,()"'\\%_]/g, ' ')
+          .split(/\s+/)
+          .filter((w) => w.length > 0);
+
+        all = all.filter((a) => {
+          const phone = (a.phone_normalized || a.phone || '').replace(/\D/g, '');
+          const combined = [
+            a.name || '',
+            a.display_name || a.displayName || '',
+            a.unique_code || a.uniqueCode || '',
+            a.email_normalized || a.email || '',
+            a.organization || '',
+            a.designation || '',
+            phone,
+          ]
+            .join(' ')
+            .toLowerCase();
+
+          return words.every((word) => combined.includes(word));
+        });
+      }
     }
 
     return {

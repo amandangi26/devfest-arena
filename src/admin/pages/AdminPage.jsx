@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -565,20 +565,49 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
     );
   }
 
-  // Filter attendees by search
-  const filteredAttendees = attendees.filter((a) => {
-    if (!searchTerm) return true;
-    const q = searchTerm.toLowerCase();
-    const email = (a.email_normalized || a.email || '').toLowerCase();
-    const phone = (a.phone_normalized || a.phone || '').toLowerCase();
-    return (
-      a.unique_code?.toLowerCase().includes(q) ||
-      a.name?.toLowerCase().includes(q) ||
-      email.includes(q) ||
-      phone.includes(q) ||
-      a.organization?.toLowerCase().includes(q)
-    );
-  });
+  // Comprehensive filter across all fields with phone digit & multi-word support
+  const filteredAttendees = useMemo(() => {
+    if (!searchTerm || !searchTerm.trim()) return attendees;
+    const clean = searchTerm.trim().toLowerCase();
+    const digits = clean.replace(/\D/g, '');
+    const nonPhone = clean.replace(/[\d\s+\-()]/g, '');
+
+    // Pure phone / numeric search
+    if (nonPhone.length === 0 && digits.length >= 4) {
+      let phoneTerm = digits;
+      if (digits.startsWith('91') && digits.length === 12) phoneTerm = digits.slice(2);
+      else if (digits.startsWith('0') && digits.length === 11) phoneTerm = digits.slice(1);
+      else if (digits.length > 10) phoneTerm = digits.slice(-10);
+
+      return attendees.filter((a) => {
+        const p = (a.phone_normalized || a.phone || '').replace(/\D/g, '');
+        const code = (a.unique_code || a.uniqueCode || '').toLowerCase();
+        return p.includes(phoneTerm) || code.includes(clean);
+      });
+    }
+
+    const words = clean
+      .replace(/[,()"'\\%_]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length > 0);
+
+    return attendees.filter((a) => {
+      const p = (a.phone_normalized || a.phone || '').replace(/\D/g, '');
+      const combined = [
+        a.name || '',
+        a.display_name || a.displayName || '',
+        a.unique_code || a.uniqueCode || '',
+        a.email_normalized || a.email || '',
+        a.organization || '',
+        a.designation || '',
+        p,
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return words.every((word) => combined.includes(word));
+    });
+  }, [attendees, searchTerm]);
 
   const allFilteredIds = filteredAttendees.map((a) => a.id || a.unique_code);
   const areAllSelected =

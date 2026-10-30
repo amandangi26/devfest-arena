@@ -122,7 +122,35 @@ export const db = {
 
         if (search && search.trim()) {
           const clean = search.trim();
-          query = query.or(`name.ilike.%${clean}%,unique_code.ilike.%${clean}%,email_normalized.ilike.%${clean}%,phone_normalized.ilike.%${clean}%,organization.ilike.%${clean}%`);
+          const digits = clean.replace(/\D/g, '');
+          const nonPhoneChars = clean.replace(/[\d\s+\-()]/g, '');
+
+          // If purely numeric / phone number query
+          if (nonPhoneChars.length === 0 && digits.length >= 4) {
+            let phoneTerm = digits;
+            if (digits.startsWith('91') && digits.length === 12) {
+              phoneTerm = digits.slice(2);
+            } else if (digits.startsWith('0') && digits.length === 11) {
+              phoneTerm = digits.slice(1);
+            } else if (digits.length > 10) {
+              phoneTerm = digits.slice(-10);
+            }
+            query = query.or(`phone_normalized.ilike.%${phoneTerm}%,unique_code.ilike.%${clean.trim()}%`);
+          } else {
+            // Text search: sanitize PostgREST delimiter characters (, " ' % _ \)
+            const safe = clean.replace(/[,()"'\\%_]/g, ' ').replace(/\s+/g, ' ').trim();
+            const words = safe.split(' ').filter((w) => w.length > 0);
+            const cols = ['name', 'display_name', 'unique_code', 'email_normalized', 'organization', 'designation'];
+
+            for (const word of words) {
+              const conds = cols.map((c) => `${c}.ilike.%${word}%`);
+              const wordDigits = word.replace(/\D/g, '');
+              if (wordDigits.length >= 3) {
+                conds.push(`phone_normalized.ilike.%${wordDigits}%`);
+              }
+              query = query.or(conds.join(','));
+            }
+          }
         }
 
         const { data, count, error } = await query

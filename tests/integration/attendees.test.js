@@ -69,6 +69,18 @@ DFR26-A${runId}2,Vikram Singh,vikram${runId}@example.com,9876543221,Conference O
 
       expect(res.status).toBe(200);
       expect(res.body.data.length).toBeLessThanOrEqual(1);
+
+      // Test searching by formatted phone number (+91 ...)
+      const phoneRes = await request(app)
+        .get(`/api/attendees?search=${encodeURIComponent('+91 9876543221')}`)
+        .set('x-admin-key', config.adminApiKey);
+      expect(phoneRes.status).toBe(200);
+
+      // Test searching with commas and multi-word
+      const multiRes = await request(app)
+        .get(`/api/attendees?search=${encodeURIComponent('Vikram, Singh')}`)
+        .set('x-admin-key', config.adminApiKey);
+      expect(multiRes.status).toBe(200);
     });
   });
 
