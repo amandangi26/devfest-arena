@@ -89,3 +89,4 @@ export async function compressImage(file, options = {}) {
     reader.readAsDataURL(file);
   });
 }
+

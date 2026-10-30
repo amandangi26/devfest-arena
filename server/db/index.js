@@ -352,56 +352,64 @@ export const db = {
 
   async listGameDefinitions() {
     if (supabase) {
-      const { data, error } = await supabase
-        .from('game_definitions')
-        .select('*')
-        .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('game_definitions')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      const games = data || [];
+        if (error) {
+          console.error('[DB] listGameDefinitions error, falling back to memoryStore:', error);
+          return memoryStore.listGameDefinitions();
+        }
+        const games = data || [];
 
-      const enriched = await Promise.all(
-        games.map(async (g) => {
-          const { hallName, cleanDescription } = extractHallAndDescription(g.description);
-          g.hall_name = hallName;
-          g.hallName = hallName;
-          g.description = cleanDescription;
+        const enriched = await Promise.all(
+          games.map(async (g) => {
+            const { hallName, cleanDescription } = extractHallAndDescription(g.description);
+            g.hall_name = hallName;
+            g.hallName = hallName;
+            g.description = cleanDescription;
 
-          if (g.questions && g.questions.length > 0) return g;
-          try {
-            const { data: vers } = await supabase
-              .from('game_versions')
-              .select('questions, total_questions')
-              .eq('game_definition_id', g.id)
-              .order('version_number', { ascending: false })
-              .limit(1);
-            if (vers && vers.length > 0) {
+            if (g.questions && g.questions.length > 0) return g;
+            try {
+              const { data: vers } = await supabase
+                .from('game_versions')
+                .select('questions, total_questions')
+                .eq('game_definition_id', g.id)
+                .order('version_number', { ascending: false })
+                .limit(1);
+              if (vers && vers.length > 0) {
+                return {
+                  ...g,
+                  questions: vers[0].questions || [],
+                  totalQuestions: vers[0].total_questions || vers[0].questions?.length || 0,
+                };
+              }
+            } catch {
+              // ignore
+            }
+            const mem = await memoryStore.getGameDefinition(g.id);
+            if (mem?.questions) {
               return {
                 ...g,
-                questions: vers[0].questions || [],
-                totalQuestions: vers[0].total_questions || vers[0].questions?.length || 0,
+                questions: mem.questions,
+                totalQuestions: mem.questions.length,
               };
             }
-          } catch {
-            // ignore
-          }
-          const mem = await memoryStore.getGameDefinition(g.id);
-          if (mem?.questions) {
             return {
               ...g,
-              questions: mem.questions,
-              totalQuestions: mem.questions.length,
+              questions: [],
+              totalQuestions: 0,
             };
-          }
-          return {
-            ...g,
-            questions: [],
-            totalQuestions: 0,
-          };
-        })
-      );
+          })
+        );
 
-      return enriched;
+        return enriched;
+      } catch (err) {
+        console.error('[DB] listGameDefinitions exception, falling back to memoryStore:', err);
+        return memoryStore.listGameDefinitions();
+      }
     }
 
     return memoryStore.listGameDefinitions();
@@ -521,15 +529,23 @@ export const db = {
 
   async listGameVersions(gameDefinitionId) {
     if (supabase) {
-      const { data, error } = await supabase
-        .from('game_versions')
-        .select('*')
-        .eq('game_definition_id', gameDefinitionId)
-        .gt('version_number', 0)
-        .order('version_number', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('game_versions')
+          .select('*')
+          .eq('game_definition_id', gameDefinitionId)
+          .gt('version_number', 0)
+          .order('version_number', { ascending: false });
 
-      if (error) throw error;
-      return data || [];
+        if (error) {
+          console.warn('[DB] listGameVersions error, fallback to memoryStore:', error);
+          return memoryStore.listGameVersions(gameDefinitionId);
+        }
+        return data || [];
+      } catch (err) {
+        console.warn('[DB] listGameVersions exception, fallback to memoryStore:', err);
+        return memoryStore.listGameVersions(gameDefinitionId);
+      }
     }
 
     return memoryStore.listGameVersions(gameDefinitionId);
