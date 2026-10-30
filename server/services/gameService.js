@@ -240,6 +240,7 @@ export async function duplicateGame(id, adminId = 'admin') {
     description: original.description,
     gameType: original.game_type,
     trackTarget: original.track_target,
+    hallName: original.hall_name || original.hallName || 'Conference Hall',
     questions: original.questions || [],
   };
 

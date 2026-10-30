@@ -7,8 +7,8 @@ export const optionSchema = z.object({
 });
 
 export const questionSchema = z.object({
-  questionId: z.string().trim().min(1, 'Question ID is required'),
-  order: z.number().int().min(1),
+  questionId: z.string().trim().optional(),
+  order: z.number().int().min(1).optional(),
   prompt: z.string().trim().min(5, 'Question prompt must be at least 5 characters long'),
   codeSnippet: z.string().optional().or(z.literal('')),
   mediaUrl: z.string().trim().url('Media URL must be valid').optional().or(z.literal('')),

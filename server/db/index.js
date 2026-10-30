@@ -1,6 +1,19 @@
 import { supabase } from './supabaseClient.js';
 import { memoryStore } from './memoryStore.js';
 
+function extractHallAndDescription(desc) {
+  if (!desc) return { hallName: 'Conference Hall', cleanDescription: '' };
+  const str = String(desc);
+  const match = str.match(/<!--hall:([^>]+)-->/);
+  if (match) {
+    return {
+      hallName: match[1].trim(),
+      cleanDescription: str.replace(/<!--hall:[^>]+-->/g, '').trim(),
+    };
+  }
+  return { hallName: 'Conference Hall', cleanDescription: str };
+}
+
 export const db = {
   // Check backend mode
   isSupabase() {
@@ -217,48 +230,77 @@ export const db = {
 
   // Games
   async upsertGameDefinition(gameDef) {
+    const hallName = gameDef.hall_name || gameDef.hallName || 'Conference Hall';
+    const rawDesc = (gameDef.description || '').replace(/<!--hall:[^>]+-->/g, '').trim();
+    const encodedDesc = hallName ? `<!--hall:${hallName}-->${rawDesc}` : rawDesc;
+
     if (supabase) {
       const cleanDef = {
         id: gameDef.id,
         title: gameDef.title,
-        description: gameDef.description || '',
+        description: encodedDesc,
         game_type: gameDef.game_type || gameDef.gameType || 'SYNCHRONIZED_MCQ',
         track_target: gameDef.track_target || gameDef.trackTarget || 'all',
-        hall_name: gameDef.hall_name || gameDef.hallName || 'Conference Hall',
         status: gameDef.status || 'DRAFT',
-        created_at: gameDef.created_at || Date.now(),
-        updated_at: gameDef.updated_at || Date.now(),
+        created_at: Number(gameDef.created_at) || Date.now(),
+        updated_at: Number(gameDef.updated_at) || Date.now(),
       };
 
       try {
         const { data, error } = await supabase
           .from('game_definitions')
-          .upsert(gameDef.questions ? { ...cleanDef, questions: gameDef.questions } : cleanDef)
+          .upsert(cleanDef)
           .select()
           .single();
 
         if (error) {
-          if (error.message?.includes("column of 'game_definitions'") || error.message?.includes('schema cache')) {
-            const { data: metaData, error: metaErr } = await supabase
-              .from('game_definitions')
-              .upsert(cleanDef)
-              .select()
-              .single();
-            if (metaErr) throw metaErr;
-            memoryStore.upsertGameDefinition({ ...gameDef, ...cleanDef });
-            return { ...metaData, questions: gameDef.questions || [] };
-          }
+          console.error('[DB] upsertGameDefinition Supabase error:', error);
           throw error;
         }
-        memoryStore.upsertGameDefinition({ ...gameDef, ...cleanDef });
-        return data;
+
+        // Persist draft questions in Supabase game_versions table under version 0 if questions provided
+        if (gameDef.questions && gameDef.questions.length > 0) {
+          try {
+            await supabase.from('game_versions').upsert({
+              id: `ver_${gameDef.id}_v0`,
+              game_definition_id: gameDef.id,
+              version_number: 0,
+              total_questions: gameDef.questions.length,
+              questions: gameDef.questions,
+              published_by: 'draft',
+              published_at: Date.now(),
+            });
+          } catch (vErr) {
+            console.warn('[DB] Could not persist draft questions to game_versions v0:', vErr);
+          }
+        }
+
+        const enriched = {
+          ...data,
+          description: rawDesc,
+          hall_name: hallName,
+          hallName,
+          questions: gameDef.questions || [],
+        };
+        memoryStore.upsertGameDefinition(enriched);
+        return enriched;
       } catch (err) {
-        console.error('[DB] upsertGameDefinition error:', err);
-        return memoryStore.upsertGameDefinition(gameDef);
+        console.error('[DB] upsertGameDefinition fallback error:', err);
+        return memoryStore.upsertGameDefinition({
+          ...gameDef,
+          description: rawDesc,
+          hall_name: hallName,
+          hallName,
+        });
       }
     }
 
-    return memoryStore.upsertGameDefinition(gameDef);
+    return memoryStore.upsertGameDefinition({
+      ...gameDef,
+      description: rawDesc,
+      hall_name: hallName,
+      hallName,
+    });
   },
 
   async getGameDefinition(id) {
@@ -273,7 +315,15 @@ export const db = {
         console.error('[DB] getGameDefinition error:', error);
         return memoryStore.getGameDefinition(id);
       }
-      if (!data) return null;
+      if (!data) {
+        return memoryStore.getGameDefinition(id);
+      }
+
+      const { hallName, cleanDescription } = extractHallAndDescription(data.description);
+      data.hall_name = hallName;
+      data.hallName = hallName;
+      data.description = cleanDescription;
+
       if (!data.questions || data.questions.length === 0) {
         const mem = await memoryStore.getGameDefinition(id);
         if (mem?.questions && mem.questions.length > 0) {
@@ -291,6 +341,9 @@ export const db = {
           }
         }
       }
+
+      data.questions = data.questions || [];
+      memoryStore.upsertGameDefinition(data);
       return data;
     }
 
@@ -309,6 +362,11 @@ export const db = {
 
       const enriched = await Promise.all(
         games.map(async (g) => {
+          const { hallName, cleanDescription } = extractHallAndDescription(g.description);
+          g.hall_name = hallName;
+          g.hallName = hallName;
+          g.description = cleanDescription;
+
           if (g.questions && g.questions.length > 0) return g;
           try {
             const { data: vers } = await supabase
@@ -335,7 +393,11 @@ export const db = {
               totalQuestions: mem.questions.length,
             };
           }
-          return g;
+          return {
+            ...g,
+            questions: [],
+            totalQuestions: 0,
+          };
         })
       );
 
@@ -412,6 +474,7 @@ export const db = {
         .single();
 
       if (error) throw error;
+      memoryStore.createGameVersion(version);
       return data;
     }
 
@@ -428,8 +491,9 @@ export const db = {
 
       if (error) {
         console.error('[DB] getGameVersion error:', error);
-        return null;
+        return memoryStore.getGameVersion(id);
       }
+      if (!data) return memoryStore.getGameVersion(id);
       return data;
     }
 
@@ -442,6 +506,7 @@ export const db = {
         .from('game_versions')
         .select('*')
         .eq('game_definition_id', gameDefinitionId)
+        .gt('version_number', 0)
         .order('version_number', { ascending: false });
 
       if (error) throw error;

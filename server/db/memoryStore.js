@@ -172,11 +172,12 @@ class MemoryStore {
   async listGameVersions(gameDefinitionId) {
     const versions = [];
     for (const ver of this.gameVersions.values()) {
-      if (ver.game_definition_id === gameDefinitionId) {
+      const verNum = ver.version_number ?? ver.versionNumber ?? 1;
+      if (ver.game_definition_id === gameDefinitionId && verNum > 0) {
         versions.push(ver);
       }
     }
-    return versions.sort((a, b) => b.version_number - a.version_number);
+    return versions.sort((a, b) => (b.version_number ?? b.versionNumber) - (a.version_number ?? a.versionNumber));
   }
 
   // Game Sessions (Room State)
