@@ -18,6 +18,8 @@ import {
   Eye,
   ArrowRight,
   Filter,
+  Download,
+  Layers,
 } from 'lucide-react';
 
 const SAMPLE_CSV = `Unique Code,Name,Email,Phone Number,Track / Registration Status,Organization / College & Location,Designation / Domain
@@ -90,6 +92,9 @@ const ACCEPTED_COLUMNS_INFO = [
 export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitchToAttendees }) {
   const [csvText, setCsvText] = useState('');
   const [fileName, setFileName] = useState('');
+  const [fileType, setFileType] = useState('none'); // 'excel' | 'csv' | 'sample' | 'paste' | 'none'
+  const [availableSheets, setAvailableSheets] = useState([]);
+  const [selectedSheet, setSelectedSheet] = useState('');
   const [preview, setPreview] = useState(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -98,6 +103,7 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
   const [showGuide, setShowGuide] = useState(true);
   const [showRawEditor, setShowRawEditor] = useState(false);
   const fileInputRef = useRef(null);
+  const workbookRef = useRef(null);
 
   // Generate Preview from Server
   const generatePreview = useCallback(
@@ -119,10 +125,10 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
         if (res?.ok && res.preview) {
           setPreview(res.preview);
         } else {
-          throw new Error(res?.error?.message || 'Could not parse CSV preview');
+          throw new Error(res?.error?.message || 'Could not parse import preview');
         }
       } catch (err) {
-        setError(err.data?.error?.message || err.message || 'Failed to generate CSV preview.');
+        setError(err.data?.error?.message || err.message || 'Failed to generate preview.');
         setPreview(null);
       } finally {
         setIsLoadingPreview(false);
@@ -131,8 +137,8 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
     [adminKey, apiClient]
   );
 
-  // Handle File Upload
-  const handleFileUpload = (e) => {
+  // Handle File Upload (Supports .csv, .xlsx, .xls)
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -140,34 +146,157 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
     setImportReport(null);
     setError(null);
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result || '';
-      setCsvText(content);
-      generatePreview(content);
-    };
-    reader.onerror = () => {
-      setError('Failed to read the selected file. Please try again.');
-    };
-    reader.readAsText(file);
+    const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+    setFileType(isExcel ? 'excel' : 'csv');
+
+    if (isExcel) {
+      setIsLoadingPreview(true);
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const XLSX = await import('xlsx');
+          const buffer = event.target?.result;
+          const workbook = XLSX.read(buffer, { type: 'array' });
+          workbookRef.current = workbook;
+          setAvailableSheets(workbook.SheetNames || []);
+
+          const initialSheet = workbook.SheetNames[0];
+          setSelectedSheet(initialSheet);
+
+          if (!initialSheet || !workbook.Sheets[initialSheet]) {
+            throw new Error('No valid sheets found in the Excel workbook.');
+          }
+
+          const csvContent = XLSX.utils.sheet_to_csv(workbook.Sheets[initialSheet]);
+          setCsvText(csvContent);
+          generatePreview(csvContent);
+        } catch (err) {
+          setError(`Failed to read Excel workbook: ${err.message}`);
+          setIsLoadingPreview(false);
+        }
+      };
+      reader.onerror = () => {
+        setError('Failed to read the selected Excel file.');
+        setIsLoadingPreview(false);
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      workbookRef.current = null;
+      setAvailableSheets([]);
+      setSelectedSheet('');
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result || '';
+        setCsvText(content);
+        generatePreview(content);
+      };
+      reader.onerror = () => {
+        setError('Failed to read the selected CSV file.');
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  // Switch Sheet in Multi-sheet Excel workbook
+  const handleSwitchSheet = async (sheetName) => {
+    if (!workbookRef.current || !workbookRef.current.Sheets[sheetName]) return;
+    setSelectedSheet(sheetName);
+    setIsLoadingPreview(true);
+    try {
+      const XLSX = await import('xlsx');
+      const csvContent = XLSX.utils.sheet_to_csv(workbookRef.current.Sheets[sheetName]);
+      setCsvText(csvContent);
+      generatePreview(csvContent);
+    } catch (err) {
+      setError(`Failed to switch to sheet "${sheetName}": ${err.message}`);
+      setIsLoadingPreview(false);
+    }
   };
 
   // Handle Sample CSV
   const handleLoadSample = () => {
     setFileName('sample_attendees.csv');
+    setFileType('sample');
     setCsvText(SAMPLE_CSV);
+    setAvailableSheets([]);
+    setSelectedSheet('');
     setImportReport(null);
     setError(null);
     generatePreview(SAMPLE_CSV);
+  };
+
+  // Download Sample Excel Template (.xlsx)
+  const handleDownloadExcelSample = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const sampleData = [
+        {
+          'Ticket Code': 'DFR26-A101',
+          'Full Name': 'Aman Dangi',
+          'Email': 'aman@gdgranchi.in',
+          'Phone Number': '+91 98765-43210',
+          'Track / Registration Status': 'Flagship Dev Track',
+          'Organization / College & Location': 'BIT Mesra',
+          'Designation / Domain': 'Lead Organizer',
+        },
+        {
+          'Ticket Code': 'DFR26-B202',
+          'Full Name': 'Priya Kumari',
+          'Email': 'priya@example.com',
+          'Phone Number': '9876543211',
+          'Track / Registration Status': 'Beginner Track',
+          'Organization / College & Location': 'IIT ISM Dhanbad',
+          'Designation / Domain': 'Flutter Developer',
+        },
+        {
+          'Ticket Code': 'DFR26-C303',
+          'Full Name': 'Rohan Sharma',
+          'Email': 'rohan@example.com',
+          'Phone Number': '9876543212',
+          'Track / Registration Status': 'Conference Only',
+          'Organization / College & Location': 'IIM Ranchi',
+          'Designation / Domain': 'Product Manager',
+        },
+        {
+          'Ticket Code': 'DFR26-D404',
+          'Full Name': 'Kavita Sen',
+          'Email': 'kavita@example.com',
+          'Phone Number': '9876543213',
+          'Track / Registration Status': 'Flagship Dev Track',
+          'Organization / College & Location': 'NIT Jamshedpur',
+          'Designation / Domain': 'Cloud Architect',
+        },
+        {
+          'Ticket Code': 'DFR26-E505',
+          'Full Name': 'Vikram Singh',
+          'Email': 'vikram@example.com',
+          'Phone Number': '9876543214',
+          'Track / Registration Status': 'Beginner Track',
+          'Organization / College & Location': 'Ranchi University',
+          'Designation / Domain': 'Student Attendee',
+        },
+      ];
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sampleData);
+      XLSX.utils.book_append_sheet(wb, ws, 'Attendees');
+      XLSX.writeFile(wb, 'devfest_attendees_sample_template.xlsx');
+    } catch (err) {
+      alert(`Could not download sample template: ${err.message}`);
+    }
   };
 
   // Clear / Reset
   const handleReset = () => {
     setCsvText('');
     setFileName('');
+    setFileType('none');
+    setAvailableSheets([]);
+    setSelectedSheet('');
     setPreview(null);
     setImportReport(null);
     setError(null);
+    workbookRef.current = null;
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -176,7 +305,7 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
   // Execute Import
   const handleExecuteImport = async () => {
     if (!csvText.trim()) {
-      setError('Please provide CSV data before executing import.');
+      setError('Please provide CSV or Excel data before executing import.');
       return;
     }
 
@@ -212,15 +341,30 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
           <div>
             <h2 className="text-xl font-black text-black uppercase tracking-tight flex items-center gap-2">
               <Upload className="w-5 h-5 text-[#4285F4]" />
-              Attendee CSV Ingestion & Field Targeting
+              Attendee Import & Field Targeting (CSV & Excel)
             </h2>
             <p className="text-xs text-black/60 font-semibold mt-1">
-              Upload raw event CSV exports. The system strictly targets the 7 recommended attendee columns and safely ignores all extra survey metadata.
+              Supports <strong>.xlsx</strong>, <strong>.xls</strong>, and <strong>.csv</strong>. Automatically targets the 7 recommended attendee columns and safely discards any extra survey metadata.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={handleLoadSample} disabled={isImporting || isLoadingPreview}>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadExcelSample}
+              disabled={isImporting}
+              title="Download empty/sample .xlsx template"
+            >
+              <Download className="w-3.5 h-3.5 inline mr-1 text-[#0F9D58]" /> Download Excel Template
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleLoadSample}
+              disabled={isImporting || isLoadingPreview}
+            >
               <Sparkles className="w-3.5 h-3.5 inline mr-1 text-[#FBBC05]" /> Load Sample CSV
             </Button>
 
@@ -228,14 +372,14 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv, .xlsx, .xls, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
                 onChange={handleFileUpload}
                 disabled={isImporting || isLoadingPreview}
                 className="hidden"
               />
               <span className="inline-flex items-center justify-center font-black uppercase tracking-wider text-xs px-4 py-2 rounded-full border-[2.5px] border-black bg-[#FBBC05] text-black shadow-[2px_2px_0_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px]">
                 <FileSpreadsheet className="w-3.5 h-3.5 inline mr-1.5" />
-                Choose CSV File
+                Choose File (.xlsx / .csv)
               </span>
             </label>
           </div>
@@ -250,7 +394,7 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
           >
             <span className="flex items-center gap-2">
               <Info className="w-4 h-4 text-[#FBBC05]" />
-              Accepted CSV Columns & Auto-Formatting Reference (Click to {showGuide ? 'Collapse' : 'Expand'})
+              Accepted CSV / Excel Columns & Auto-Formatting Reference (Click to {showGuide ? 'Collapse' : 'Expand'})
             </span>
             {showGuide ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
@@ -288,9 +432,9 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
                   ))}
                 </tbody>
               </table>
-              <div className="mt-3 pt-2 border-t border-black/10 text-[11px] text-black/70 flex items-center justify-between">
+              <div className="mt-3 pt-2 border-t border-black/10 text-[11px] text-black/70 flex flex-wrap items-center justify-between gap-2">
                 <span>
-                  💡 <strong>Extra Columns (T-shirt, Timestamp, Food, etc.):</strong> Ignored automatically & will not corrupt attendee records.
+                  💡 <strong>Supports Excel & CSV:</strong> Works directly with <code>.xlsx</code>, <code>.xls</code>, Google Sheets exports, & <code>.csv</code>.
                 </span>
                 <span className="font-semibold text-black/60">Case-insensitive headers supported</span>
               </div>
@@ -309,11 +453,14 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
         {/* Upload or Dropzone Status */}
         {!preview && (
           <div className="p-6 border-2 border-dashed border-black/30 rounded-xl bg-[#FAFAFA] flex flex-col items-center justify-center text-center gap-3">
-            <FileSpreadsheet className="w-12 h-12 text-black/40" />
+            <div className="flex items-center gap-3">
+              <FileSpreadsheet className="w-10 h-10 text-[#0F9D58]" />
+              <Upload className="w-8 h-8 text-black/40" />
+            </div>
             <div>
-              <p className="text-sm font-black text-black">No CSV Loaded Yet</p>
+              <p className="text-sm font-black text-black">Upload Excel (.xlsx / .xls) or CSV</p>
               <p className="text-xs text-black/60 max-w-md mt-0.5">
-                Click <strong>"Choose CSV File"</strong> above or <strong>"Load Sample CSV"</strong> to automatically inspect headers and preview the attendees.
+                Click <strong>"Choose File (.xlsx / .csv)"</strong> above to automatically inspect sheets, match headers, and preview attendees before importing.
               </p>
             </div>
             <button
@@ -358,7 +505,7 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
         {isLoadingPreview && (
           <div className="mt-4 p-5 bg-[#EEF4FF] border-2 border-[#4285F4] rounded-xl flex items-center justify-center gap-3 text-sm font-bold text-[#4285F4]">
             <RefreshCw className="w-5 h-5 animate-spin" />
-            <span>Analyzing columns and generating live dry-run preview...</span>
+            <span>Analyzing {fileType === 'excel' ? 'Excel workbook sheets' : 'columns'} and generating live preview...</span>
           </div>
         )}
 
@@ -370,8 +517,18 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
               <div className="flex items-center gap-2">
                 <FileCheck className="w-5 h-5 text-[#34A853]" />
                 <span className="text-xs font-black uppercase text-black">
-                  File: <span className="font-mono text-sm underline">{fileName || 'Pasted CSV Data'}</span>
+                  File:{' '}
+                  <span className="font-mono text-sm underline">{fileName || 'Pasted Data'}</span>
                 </span>
+                {fileType === 'excel' ? (
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#E6F4EA] border border-[#0F9D58] text-[#0F9D58]">
+                    Excel (.xlsx)
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#EEF4FF] border border-[#4285F4] text-[#4285F4]">
+                    CSV
+                  </span>
+                )}
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-black/10 text-black">
                   {preview.totalRows} Total Rows
                 </span>
@@ -386,6 +543,30 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
                 </Button>
               </div>
             </div>
+
+            {/* Excel Multi-Sheet Selector Tabs */}
+            {availableSheets.length > 1 && (
+              <div className="p-3 bg-[#F0FDF4] border-2 border-[#0F9D58] rounded-xl flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black uppercase text-[#0F9D58] flex items-center gap-1.5 mr-2">
+                  <Layers className="w-4 h-4" />
+                  Select Workbook Sheet ({availableSheets.length} Sheets Available):
+                </span>
+                {availableSheets.map((sheet, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSwitchSheet(sheet)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold border-2 transition-all ${
+                      selectedSheet === sheet
+                        ? 'bg-[#0F9D58] text-white border-black shadow-[2px_2px_0_0_#000]'
+                        : 'bg-white text-black border-black/30 hover:border-black'
+                    }`}
+                  >
+                    {sheet}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Target Column Mapping Status Cards */}
             <div>
@@ -423,7 +604,7 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
                           {isReq && <span className="text-[9px] font-bold text-[#EA4335]">*Req</span>}
                         </div>
                         <p className="text-[10px] font-mono truncate text-black/70">
-                          {isFound ? `Mapped: "${col.matchedHeader}"` : isReq ? 'MISSING!' : '(Not in CSV)'}
+                          {isFound ? `Mapped: "${col.matchedHeader}"` : isReq ? 'MISSING!' : '(Not in File)'}
                         </p>
                       </div>
 
@@ -464,8 +645,8 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
                 <div>
                   <p className="text-sm font-black uppercase">Cannot Import: Missing Mandatory Columns</p>
                   <p className="mt-0.5 text-black/80">
-                    The CSV is missing required column(s):{' '}
-                    <span className="font-black underline">{preview.missingRequired.join(', ')}</span>. Please make sure your CSV contains a column named <code>Ticket Code</code> (or <code>Unique Code</code>) and <code>Full Name</code> (or <code>Name</code>).
+                    The file is missing required column(s):{' '}
+                    <span className="font-black underline">{preview.missingRequired.join(', ')}</span>. Please make sure your sheet contains a column named <code>Ticket Code</code> (or <code>Unique Code</code>) and <code>Full Name</code> (or <code>Name</code>).
                   </p>
                 </div>
               </div>
@@ -506,7 +687,7 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
               <div
                 tabIndex="0"
                 role="region"
-                aria-label="Attendee CSV Preview Table"
+                aria-label="Attendee Import Preview Table"
                 className="border-2 border-black rounded-xl overflow-x-auto bg-white shadow-[3px_3px_0_0_#000] max-h-96"
               >
                 <table className="w-full text-left text-xs border-collapse">
@@ -601,7 +782,8 @@ export function CsvImportSection({ adminKey, apiClient, onImportSuccess, onSwitc
             {/* Execute Import Action Buttons */}
             <div className="pt-4 border-t-2 border-black/10 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="text-xs text-black/70 font-semibold">
-                Ready to commit <strong>{preview.validCount} attendees</strong> to Supabase database.
+                Ready to commit <strong>{preview.validCount} attendees</strong> from{' '}
+                {fileType === 'excel' ? `Excel Sheet "${selectedSheet}"` : 'file'} to Supabase database.
               </div>
 
               <div className="flex items-center gap-3 w-full sm:w-auto">

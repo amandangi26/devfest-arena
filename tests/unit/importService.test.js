@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import * as XLSX from 'xlsx';
 import {
   formatDisplayName,
   normalizeEmail,
   normalizePhone,
   normalizeTrackId,
   parseCSV,
+  parseExcel,
   importAttendees,
   resolveTargetColumns,
   previewAttendeeImport,
@@ -154,6 +156,31 @@ DFR26-P02,Priya Kumari,priya@example.com,9876543211,Beginner Track,IIT ISM,Stude
       expect(preview.previewRows[0].isValid).toBe(true);
       expect(preview.previewRows[2].isValid).toBe(false);
       expect(preview.previewRows[2].quarantineReason).toBe('Missing unique ticket code');
+    });
+  });
+
+  describe('parseExcel', () => {
+    it('parses in-memory Excel workbook buffer into rows', () => {
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet([
+        {
+          'Unique Code': 'DFR26-EX1',
+          'Name': 'Kunal Verma',
+          'Email Address': 'kunal@example.com',
+          'Phone': '+91 98765-43255',
+          'Track / Registration Status': 'Flagship Dev Track',
+          'Organization / College & Location': 'NIT Jamshedpur',
+        },
+      ]);
+      XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const rows = parseExcel(buf);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]['unique code']).toBe('DFR26-EX1');
+      expect(rows[0]['name']).toBe('Kunal Verma');
+      expect(rows[0]['email address']).toBe('kunal@example.com');
+      expect(rows[0]['phone']).toBe('+91 98765-43255');
     });
   });
 });

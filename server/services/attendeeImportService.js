@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import * as XLSX from 'xlsx';
 import { db } from '../db/index.js';
 import { config } from '../config.js';
 
@@ -102,6 +103,25 @@ export function parseCSV(csvContent) {
   }
 
   return rows;
+}
+
+/**
+ * Parses binary or base64 Excel (.xlsx, .xls) content into array of object rows.
+ * Reads specified sheet (defaults to first sheet).
+ */
+export function parseExcel(input, sheetNameOrIndex = 0) {
+  if (!input) return [];
+  const buffer = typeof input === 'string' && !input.startsWith('PK')
+    ? Buffer.from(input, 'base64')
+    : input;
+  const workbook = XLSX.read(buffer, { type: typeof buffer === 'string' ? 'string' : 'buffer' });
+  const sheetName = typeof sheetNameOrIndex === 'string'
+    ? sheetNameOrIndex
+    : workbook.SheetNames[sheetNameOrIndex || 0];
+  if (!sheetName || !workbook.Sheets[sheetName]) return [];
+  const worksheet = workbook.Sheets[sheetName];
+  const csvContent = XLSX.utils.sheet_to_csv(worksheet);
+  return parseCSV(csvContent);
 }
 
 /**

@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import {
   importAttendees,
   previewAttendeeImport,
+  parseExcel,
   formatDisplayName,
   normalizeEmail,
   normalizePhone,
@@ -123,6 +124,8 @@ attendeeRouter.post('/', requireAdmin, async (req, res, next) => {
 const importSchema = z.object({
   csvText: z.string().optional(),
   rawRows: z.array(z.record(z.string(), z.any())).optional(),
+  excelBase64: z.string().optional(),
+  sheetName: z.string().optional(),
   sourceImportId: z.string().optional(),
 });
 
@@ -130,6 +133,7 @@ const importSchema = z.object({
  * POST /api/attendees/preview-import
  * Generates dry-run preview: targets recognized columns, returns summary stats,
  * detects ignored columns, and returns parsed sample rows.
+ * Supports CSV text, rawRows, or Base64 Excel (.xlsx/.xls).
  * Restricted to Event Administrators.
  */
 attendeeRouter.post('/preview-import', requireAdmin, async (req, res, next) => {
@@ -139,18 +143,31 @@ attendeeRouter.post('/preview-import', requireAdmin, async (req, res, next) => {
       return res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'CSV text or raw rows array is required for preview.',
+          message: 'CSV text, Excel base64, or raw rows array is required for preview.',
           details: parseResult.error.format(),
         },
       });
     }
 
-    const { csvText, rawRows } = parseResult.data;
+    let { csvText, rawRows, excelBase64, sheetName } = parseResult.data;
+    if (excelBase64) {
+      try {
+        rawRows = parseExcel(excelBase64, sheetName);
+      } catch (err) {
+        return res.status(400).json({
+          error: {
+            code: 'EXCEL_PARSE_ERROR',
+            message: `Failed to parse Excel workbook: ${err.message}`,
+          },
+        });
+      }
+    }
+
     if (!csvText && (!rawRows || rawRows.length === 0)) {
       return res.status(400).json({
         error: {
           code: 'EMPTY_PAYLOAD',
-          message: 'Provide csvText string or rawRows array.',
+          message: 'Provide csvText string, excelBase64, or rawRows array.',
         },
       });
     }
@@ -172,7 +189,7 @@ attendeeRouter.post('/preview-import', requireAdmin, async (req, res, next) => {
 
 /**
  * POST /api/attendees/import
- * Ingests Commudle / Google Forms CSV exports with validation & quarantine report.
+ * Ingests Commudle / Google Forms / Excel exports with validation & quarantine report.
  * Restricted to Event Administrators.
  */
 attendeeRouter.post('/import', requireAdmin, async (req, res, next) => {
@@ -182,18 +199,31 @@ attendeeRouter.post('/import', requireAdmin, async (req, res, next) => {
       return res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'CSV text or raw rows array is required for import.',
+          message: 'CSV text, Excel base64, or raw rows array is required for import.',
           details: parseResult.error.format(),
         },
       });
     }
 
-    const { csvText, rawRows, sourceImportId } = parseResult.data;
+    let { csvText, rawRows, excelBase64, sheetName, sourceImportId } = parseResult.data;
+    if (excelBase64) {
+      try {
+        rawRows = parseExcel(excelBase64, sheetName);
+      } catch (err) {
+        return res.status(400).json({
+          error: {
+            code: 'EXCEL_PARSE_ERROR',
+            message: `Failed to parse Excel workbook: ${err.message}`,
+          },
+        });
+      }
+    }
+
     if (!csvText && (!rawRows || rawRows.length === 0)) {
       return res.status(400).json({
         error: {
           code: 'EMPTY_PAYLOAD',
-          message: 'Provide csvText string or rawRows array.',
+          message: 'Provide csvText string, excelBase64, or rawRows array.',
         },
       });
     }
