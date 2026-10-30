@@ -340,65 +340,60 @@ gameRouter.post('/upload-media', async (req, res, next) => {
 
 /**
  * GET /api/games
- * Lists all game definitions.
+ * Lists all game definitions with high-performance bulk session resolution.
  */
 gameRouter.get('/', async (req, res, next) => {
   try {
-    const rawGames = await db.listGameDefinitions();
-    // Enhance games with real-time and persisted room statuses: if any room for this game is GAME_OVER or ended, mark as ENDED
-    const games = await Promise.all(
-      rawGames.map(async (g) => {
-        let isEnded = g.status === 'ENDED';
-        let endedRoomCode = null;
-        let endedAt = null;
+    const [rawGames, allPersistedSessions] = await Promise.all([
+      db.listGameDefinitions(),
+      db.getAllGameSessions().catch(() => []),
+    ]);
 
-        // 1. Check live in-memory rooms
-        for (const r of roomOrchestrator.rooms.values()) {
-          if (r.gameDefinitionId === g.id && r.status === 'GAME_OVER') {
-            isEnded = true;
-            endedRoomCode = r.roomCode;
-            endedAt = r.endedAt;
-            break;
-          }
+    // Index persisted sessions by game_definition_id for instant O(1) in-memory checks
+    const sessionsByGameId = new Map();
+    for (const s of (allPersistedSessions || [])) {
+      if (s.game_definition_id) {
+        if (!sessionsByGameId.has(s.game_definition_id)) {
+          sessionsByGameId.set(s.game_definition_id, []);
         }
+        sessionsByGameId.get(s.game_definition_id).push(s);
+      }
+    }
 
-        // 2. Check persisted database sessions if not already marked ended
-        if (!isEnded) {
-          try {
-            const sessions = await db.getGameSessionsByDefinitionId(g.id);
-            const gameOverSession = (sessions || []).find((s) => s.status === 'GAME_OVER');
-            if (gameOverSession) {
-              isEnded = true;
-              endedRoomCode = gameOverSession.room_code;
-              endedAt = gameOverSession.ended_at;
+    const games = rawGames.map((g) => {
+      let isEnded = g.status === 'ENDED';
+      let endedRoomCode = null;
+      let endedAt = null;
 
-              // Synchronize definition status in DB so future queries know it's ENDED
-              if (g.status !== 'ENDED') {
-                try {
-                  await db.upsertGameDefinition({
-                    ...g,
-                    status: 'ENDED',
-                    updated_at: Date.now(),
-                  });
-                } catch (e) {
-                  console.warn('[gameRoutes] failed to sync ENDED status to db:', e?.message);
-                }
-              }
-            }
-          } catch (err) {
-            console.warn('[gameRoutes] error fetching sessions for game', g.id, err?.message);
-          }
+      // 1. Check live in-memory rooms
+      for (const r of roomOrchestrator.rooms.values()) {
+        if (r.gameDefinitionId === g.id && r.status === 'GAME_OVER') {
+          isEnded = true;
+          endedRoomCode = r.roomCode;
+          endedAt = r.endedAt;
+          break;
         }
+      }
 
-        return {
-          ...g,
-          status: isEnded ? 'ENDED' : g.status,
-          hasEndedSession: isEnded,
-          endedRoomCode,
-          endedAt,
-        };
-      })
-    );
+      // 2. Check persisted database sessions if not already marked ended
+      if (!isEnded) {
+        const sessions = sessionsByGameId.get(g.id) || [];
+        const gameOverSession = sessions.find((s) => s.status === 'GAME_OVER');
+        if (gameOverSession) {
+          isEnded = true;
+          endedRoomCode = gameOverSession.room_code;
+          endedAt = gameOverSession.ended_at;
+        }
+      }
+
+      return {
+        ...g,
+        status: isEnded ? 'ENDED' : g.status,
+        hasEndedSession: isEnded,
+        endedRoomCode,
+        endedAt,
+      };
+    });
 
     res.json({
       ok: true,
@@ -438,10 +433,22 @@ gameRouter.post('/:id/restart', async (req, res, next) => {
 /**
  * POST /api/games
  * Creates a new Game Definition draft.
+ * Supports ?publish=true to create and publish atomically in 1 request.
  */
 gameRouter.post('/', async (req, res, next) => {
   try {
+    const shouldPublish = Boolean(req.query.publish === 'true' || req.body?.publish);
     const game = await createGame(req.body, req.adminId || 'admin');
+
+    if (shouldPublish) {
+      const version = await publishGame(game.id, req.adminId || 'admin');
+      return res.status(201).json({
+        ok: true,
+        game,
+        version,
+      });
+    }
+
     res.status(201).json({
       ok: true,
       game,
@@ -491,10 +498,12 @@ gameRouter.put('/:id', async (req, res, next) => {
 /**
  * POST /api/games/:id/publish
  * Compiles a draft into an immutable game version snapshot.
+ * Accepts optional body with updates to save and publish in 1 request.
  */
 gameRouter.post('/:id/publish', async (req, res, next) => {
   try {
-    const version = await publishGame(req.params.id, req.adminId || 'admin');
+    const updates = req.body && Object.keys(req.body).length > 0 ? req.body : null;
+    const version = await publishGame(req.params.id, req.adminId || 'admin', updates);
     res.status(201).json({
       ok: true,
       version,

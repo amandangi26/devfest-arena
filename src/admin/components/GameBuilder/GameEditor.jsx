@@ -118,6 +118,7 @@ export function GameEditor({ game, adminKey, onSave, onPublish, onBack, onDelete
   const [isDeleting, setIsDeleting] = useState(false);
   const [uploadingOptionIdx, setUploadingOptionIdx] = useState(null);
   const [isUploadingQuestionMedia, setIsUploadingQuestionMedia] = useState(false);
+  const [actionType, setActionType] = useState(null); // 'draft' | 'publish' | null
 
   const handleConfirmDelete = async (gameId) => {
     setIsDeleting(true);
@@ -310,6 +311,7 @@ export function GameEditor({ game, adminKey, onSave, onPublish, onBack, onDelete
       return;
     }
     setError(null);
+    setActionType('draft');
     try {
       await onSave({
         title: title.trim(),
@@ -320,6 +322,8 @@ export function GameEditor({ game, adminKey, onSave, onPublish, onBack, onDelete
       });
     } catch (err) {
       setError(err.message);
+    } finally {
+      setActionType(null);
     }
   };
 
@@ -330,6 +334,7 @@ export function GameEditor({ game, adminKey, onSave, onPublish, onBack, onDelete
       return;
     }
     setError(null);
+    setActionType('publish');
     try {
       await onPublish({
         title: title.trim(),
@@ -340,15 +345,19 @@ export function GameEditor({ game, adminKey, onSave, onPublish, onBack, onDelete
       });
     } catch (err) {
       setError(err.message);
+    } finally {
+      setActionType(null);
     }
   };
+
+  const isWorking = isSaving || actionType !== null;
 
   return (
     <div className="flex flex-col gap-6 w-full">
       {/* Top Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 border-[2.5px] border-black rounded-xl shadow-[3px_3px_0_0_#000]">
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={onBack}>
+          <Button variant="outline" size="sm" onClick={onBack} disabled={isWorking}>
             <ArrowLeft className="w-3.5 h-3.5 inline mr-1" /> Back
           </Button>
           <div>
@@ -362,14 +371,48 @@ export function GameEditor({ game, adminKey, onSave, onPublish, onBack, onDelete
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={handleLoadSample}>
+          <Button variant="outline" size="sm" onClick={handleLoadSample} disabled={isWorking}>
             <Sparkles className="w-3.5 h-3.5 inline mr-1 text-[#FBBC05]" /> Load Sample Quiz
           </Button>
-          <Button variant="outline" size="sm" onClick={handleSaveDraft} disabled={isSaving}>
-            <Save className="w-3.5 h-3.5 inline mr-1" /> Save Draft
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSaveDraft}
+            disabled={isWorking}
+            className="min-w-[120px]"
+          >
+            {actionType === 'draft' || (isSaving && actionType !== 'publish') ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 inline mr-1.5 animate-spin text-black" />
+                <span>Saving Draft...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-3.5 h-3.5 inline mr-1" />
+                <span>Save Draft</span>
+              </>
+            )}
           </Button>
-          <Button variant="primary" size="sm" onClick={handlePublishClick} disabled={isSaving}>
-            <UploadCloud className="w-3.5 h-3.5 inline mr-1" /> Publish Version
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handlePublishClick}
+            disabled={isWorking}
+            className="min-w-[155px] font-black"
+          >
+            {actionType === 'publish' || (isSaving && actionType === 'publish') ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 inline mr-1.5 animate-spin text-white" />
+                <span>Publishing Live...</span>
+              </>
+            ) : (
+              <>
+                <UploadCloud className="w-3.5 h-3.5 inline mr-1" />
+                <span>Publish Version</span>
+              </>
+            )}
           </Button>
 
           {game?.id && (
@@ -377,6 +420,7 @@ export function GameEditor({ game, adminKey, onSave, onPublish, onBack, onDelete
               type="button"
               variant="outline"
               size="sm"
+              disabled={isWorking}
               onClick={() => setIsDeleteModalOpen(true)}
               className="border-[#EA4335] text-[#EA4335] hover:bg-[#FFF0F0]"
             >
@@ -385,6 +429,25 @@ export function GameEditor({ game, adminKey, onSave, onPublish, onBack, onDelete
           )}
         </div>
       </div>
+
+      {/* Active Publishing Banner with Spinner */}
+      {(actionType === 'publish' || (isSaving && actionType === 'publish')) && (
+        <div className="p-3.5 bg-[#EEF4FF] border-[2.5px] border-[#4285F4] rounded-xl flex items-center gap-3 text-xs font-black text-[#1A73E8] shadow-[3px_3px_0_0_#4285F4] animate-pulse">
+          <Loader2 className="w-5 h-5 animate-spin text-[#4285F4] shrink-0" />
+          <div className="flex flex-col">
+            <span className="uppercase tracking-wider text-[11px] font-black">Publishing Live Snapshot...</span>
+            <span className="text-black/70 font-semibold">Locking quiz version and synchronizing questions to Live Arena in real time. Please wait.</span>
+          </div>
+        </div>
+      )}
+
+      {/* Active Saving Draft Banner with Spinner */}
+      {(actionType === 'draft' || (isSaving && actionType === 'draft')) && (
+        <div className="p-3 bg-[#FFFDF0] border-[2px] border-[#FBBC05] rounded-xl flex items-center gap-3 text-xs font-black text-black shadow-[3px_3px_0_0_#FBBC05] animate-pulse">
+          <Loader2 className="w-4 h-4 animate-spin text-black shrink-0" />
+          <span>Saving quiz draft to database...</span>
+        </div>
+      )}
 
       {error && (
         <div className="p-3 bg-[#FFF5F5] border-[2px] border-[#EA4335] rounded-xl text-xs font-bold text-[#EA4335]">

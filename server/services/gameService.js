@@ -157,9 +157,16 @@ export async function updateGame(id, input, adminId = 'admin') {
 
 /**
  * Publishes a game definition into an immutable game version snapshot.
+ * Optionally applies pending updates first in a single atomic operation.
  */
-export async function publishGame(id, adminId = 'admin') {
-  const game = await db.getGameDefinition(id);
+export async function publishGame(id, adminId = 'admin', updates = null) {
+  let game = null;
+  if (updates && typeof updates === 'object' && Object.keys(updates).length > 0) {
+    game = await updateGame(id, updates, adminId);
+  } else {
+    game = await db.getGameDefinition(id);
+  }
+
   if (!game) {
     const error = new Error(`Game definition not found: ${id}`);
     error.status = 404;

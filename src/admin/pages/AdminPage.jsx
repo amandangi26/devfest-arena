@@ -206,29 +206,31 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
   const handlePublishGame = async (gamePayload) => {
     setIsSavingGame(true);
     try {
-      // 1. Save draft first
       let gameId = selectedGame?.id;
+
+      // New Game: Create and Publish atomically in 1 single fast call
       if (!gameId) {
-        const createRes = await apiClient('/games', {
+        const createRes = await apiClient('/games?publish=true', {
           method: 'POST',
           headers: { 'x-admin-key': adminKey },
           body: JSON.stringify(gamePayload),
         });
-        if (!createRes?.ok) throw new Error(createRes?.error?.message || 'Create failed');
-        gameId = createRes.game.id;
-      } else {
-        const putRes = await apiClient(`/games/${gameId}`, {
-          method: 'PUT',
-          headers: { 'x-admin-key': adminKey },
-          body: JSON.stringify(gamePayload),
-        });
-        if (!putRes?.ok) throw new Error(putRes?.error?.message || 'Update failed');
+        if (!createRes?.ok) throw new Error(createRes?.error?.message || 'Create and publish failed');
+
+        const vNum = createRes.version?.version_number || 1;
+        const qCount = createRes.version?.total_questions || createRes.game?.questions?.length || 0;
+        setGameSuccessMsg(`Version ${vNum} Published! Snapshot with ${qCount} questions locked into Live Arena.`);
+        setTimeout(() => setGameSuccessMsg(null), 4000);
+        setSelectedGame(null);
+        loadGames();
+        return;
       }
 
-      // 2. Publish version
+      // Existing Game: Update draft and publish snapshot in 1 single atomic call
       const pubRes = await apiClient(`/games/${gameId}/publish`, {
         method: 'POST',
         headers: { 'x-admin-key': adminKey },
+        body: JSON.stringify(gamePayload),
       });
 
       if (pubRes?.ok) {

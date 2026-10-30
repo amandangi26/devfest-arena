@@ -476,24 +476,28 @@ export const db = {
   async createGameVersion(version) {
     if (supabase) {
       try {
-        // 1. Ensure the parent game definition exists in Supabase to satisfy FK constraint
-        const parentDef = await this.getGameDefinition(version.game_definition_id);
-        if (parentDef) {
-          await this.upsertGameDefinition(parentDef);
-        }
-
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('game_versions')
           .insert(version)
           .select()
           .single();
 
-        if (error) {
-          if (error.code === '23503' || error.message?.includes('foreign key constraint')) {
-            console.warn('[DB] game_versions FK constraint warning, falling back to memoryStore:', error.message);
-            return memoryStore.createGameVersion(version);
+        // If parent definition missing (FK error), self-heal by upserting parent and retrying
+        if (error && (error.code === '23503' || error.message?.includes('foreign key constraint'))) {
+          console.warn('[DB] Self-healing parent definition for version:', version.game_definition_id);
+          const parentDef = await this.getGameDefinition(version.game_definition_id);
+          if (parentDef) {
+            await this.upsertGameDefinition(parentDef);
+            const retry = await supabase.from('game_versions').insert(version).select().single();
+            if (!retry.error) {
+              data = retry.data;
+              error = null;
+            }
           }
-          console.error('[DB] createGameVersion error:', error);
+        }
+
+        if (error) {
+          console.error('[DB] createGameVersion error, falling back to memoryStore:', error);
           return memoryStore.createGameVersion(version);
         }
 
