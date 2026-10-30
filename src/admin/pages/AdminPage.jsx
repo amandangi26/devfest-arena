@@ -21,6 +21,7 @@ import {
   Gamepad2,
   Radio,
   Mail,
+  Phone,
   UserPlus,
   Trash2,
   CheckSquare,
@@ -590,10 +591,12 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
   const filteredAttendees = attendees.filter((a) => {
     const q = searchTerm.toLowerCase();
     const email = (a.email_normalized || a.email || '').toLowerCase();
+    const phone = (a.phone_normalized || a.phone || '').toLowerCase();
     return (
       a.unique_code?.toLowerCase().includes(q) ||
       a.name?.toLowerCase().includes(q) ||
       email.includes(q) ||
+      phone.includes(q) ||
       a.organization?.toLowerCase().includes(q)
     );
   });
@@ -1001,6 +1004,7 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
                     <th className="p-3">Ticket Code</th>
                     <th className="p-3">Name</th>
                     <th className="p-3">Email Address</th>
+                    <th className="p-3">Phone Number</th>
                     <th className="p-3">Organization</th>
                     <th className="p-3">Verified At</th>
                     <th className="p-3">Venue Status</th>
@@ -1014,6 +1018,7 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
                     const isCheckedIn = att.attendance_status === 'checked_in';
                     const isVerified = Boolean(att.ticket_verified_at);
                     const email = att.email_normalized || att.email || '—';
+                    const phone = att.phone_normalized || att.phone || '—';
 
                     return (
                       <tr
@@ -1057,6 +1062,16 @@ export function AdminPage({ adminKey: propAdminKey, adminEmail: propAdminEmail, 
                             <span className="inline-flex items-center gap-1.5 bg-[#EEF4FF] border border-[#4285F4]/40 rounded-lg px-2.5 py-1 font-mono text-black font-semibold shadow-[1px_1px_0_0_#4285F4]">
                               <Mail className="w-3.5 h-3.5 text-[#4285F4]" />
                               {email}
+                            </span>
+                          ) : (
+                            <span className="text-black/40 font-mono">—</span>
+                          )}
+                        </td>
+                        <td className="p-3 font-mono text-[11px] text-black">
+                          {phone !== '—' ? (
+                            <span className="inline-flex items-center gap-1.5 bg-[#FFF8E7] border border-[#FBBC05]/60 rounded-lg px-2.5 py-1 font-mono text-black font-semibold shadow-[1px_1px_0_0_#FBBC05]">
+                              <Phone className="w-3.5 h-3.5 text-[#E37400]" />
+                              {phone}
                             </span>
                           ) : (
                             <span className="text-black/40 font-mono">—</span>

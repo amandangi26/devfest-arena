@@ -46,24 +46,27 @@ export async function verifyTicket({ uniqueCode, contact }) {
 
   // 2. Cross-check contact against normalized email or phone
   let isMatch = false;
+  const attEmail = (attendee.email_normalized || attendee.email || '').toLowerCase().trim();
+  const attPhone = (attendee.phone_normalized || attendee.phone || '').replace(/\D/g, '');
+
   if (rawContact.includes('@')) {
-    const cleanEmail = normalizeEmail(rawContact);
-    if (cleanEmail && attendee.email_normalized && cleanEmail === attendee.email_normalized) {
+    const cleanEmail = normalizeEmail(rawContact) || rawContact.toLowerCase().trim();
+    if (cleanEmail && attEmail && cleanEmail === attEmail) {
       isMatch = true;
     }
   } else {
-    const cleanPhone = normalizePhone(rawContact);
-    if (cleanPhone && attendee.phone_normalized && cleanPhone === attendee.phone_normalized) {
+    const cleanPhone = normalizePhone(rawContact) || rawContact.replace(/\D/g, '');
+    if (cleanPhone && attPhone && (cleanPhone === attPhone || attPhone.endsWith(cleanPhone) || cleanPhone.endsWith(attPhone))) {
       isMatch = true;
     }
   }
 
   // Fallback: check both if contact format is ambiguous
   if (!isMatch) {
-    const asEmail = normalizeEmail(rawContact);
-    const asPhone = normalizePhone(rawContact);
-    if (asEmail && attendee.email_normalized === asEmail) isMatch = true;
-    if (asPhone && attendee.phone_normalized === asPhone) isMatch = true;
+    const asEmail = (normalizeEmail(rawContact) || rawContact).toLowerCase().trim();
+    const asPhone = normalizePhone(rawContact) || rawContact.replace(/\D/g, '');
+    if (asEmail && attEmail && asEmail === attEmail) isMatch = true;
+    if (asPhone && attPhone && (asPhone === attPhone || attPhone.endsWith(asPhone) || asPhone.endsWith(attPhone))) isMatch = true;
   }
 
   if (!isMatch) {
